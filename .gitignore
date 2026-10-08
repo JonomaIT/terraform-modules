@@ -42,3 +42,5 @@ terraform.rc
 # Optional: ignore plan files saved before destroying Terraform configuration
 # Uncomment the line below if you want to ignore planout files.
 # planout
+# Repo de módulos não versiona lock file (quem trava versão é o root module que chama)
+.terraform.lock.hcl
