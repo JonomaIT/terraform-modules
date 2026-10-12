@@ -1,7 +1,7 @@
-# Internal load balancer: service-to-service traffic and the VPC Link entry point (through the NLB).
-# Only accepts traffic from inside the VPC.
+# Internal load balancer: service-to-service traffic and the VPC Link / Global Accelerator entry
+# point (through the NLB). Only accepts traffic from inside the VPC.
 resource "aws_security_group" "lb_internal" {
-  name        = format("%s-loadbalancer-internal", var.project_name)
+  name_prefix = format("%s-lb-internal-", var.project_name)
   description = "Internal load balancer: HTTP/HTTPS only from inside the VPC"
   vpc_id      = var.vpc_id
 
@@ -11,6 +11,11 @@ resource "aws_security_group" "lb_internal" {
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = [data.aws_vpc.main.cidr_block]
+  }
+
+  # A security group in use by a load balancer cannot be deleted: create the new one first.
+  lifecycle {
+    create_before_destroy = true
   }
 }
 
@@ -57,8 +62,37 @@ resource "aws_lb_listener" "http_internal" {
 
     fixed_response {
       content_type = "text/plain"
-      message_body = "404: Not Found (Internal Load Balancer)"
-      status_code  = "404"
+      message_body = format("%s - %s (internal)", var.project_name, data.aws_region.current.region)
+      status_code  = "200"
     }
   }
+}
+
+# HTTPS only when certificates are given: the first one is the listener default,
+# the others are attached as additional certificates (SNI).
+resource "aws_lb_listener" "https_internal" {
+  count = length(var.acm_certs) > 0 ? 1 : 0
+
+  load_balancer_arn = aws_lb.internal.arn
+  port              = 443
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+  certificate_arn   = var.acm_certs[0]
+
+  default_action {
+    type = "fixed-response"
+
+    fixed_response {
+      content_type = "text/plain"
+      message_body = format("%s - %s (internal)", var.project_name, data.aws_region.current.region)
+      status_code  = "200"
+    }
+  }
+}
+
+resource "aws_lb_listener_certificate" "https_internal" {
+  for_each = toset(slice(var.acm_certs, min(1, length(var.acm_certs)), length(var.acm_certs)))
+
+  listener_arn    = aws_lb_listener.https_internal[0].arn
+  certificate_arn = each.value
 }

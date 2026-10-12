@@ -7,7 +7,7 @@ Terraform module library for JonomaIT. Modules describe **how** to build things;
 | Module | What it creates |
 |---|---|
 | [`vpc`](vpc/) | VPC with public subnets (Internet Gateway) and private subnets, with one NAT Gateway per AZ. |
-| [`cluster-ecs`](cluster-ecs/) | ECS cluster (Fargate and Fargate Spot), external ALB, internal ALB, private zone `<project>.internal`, Cloud Map namespaces (service discovery and Service Connect) and an API Gateway VPC Link through an NLB. |
+| [`cluster-ecs`](cluster-ecs/) | ECS cluster (Fargate and Fargate Spot), external ALB, internal ALB, private zone `<project>.internal`, Cloud Map namespaces (service discovery and Service Connect) and an internal NLB in front of the internal ALB, used by an API Gateway VPC Link and as a Global Accelerator endpoint. Optional HTTPS with `acm_certs`. |
 
 ## Usage
 
@@ -38,6 +38,6 @@ A tag versions the whole repo: `v0.3.0` applies to every module.
 
 | Tag | Change |
 |---|---|
-| `v0.3.0` | Comments, descriptions and validation messages translated to English. No resource changes besides descriptions. |
+| `v0.3.0` | `cluster-ecs`: NLB open to Global Accelerator traffic; optional HTTPS (`acm_certs`) on the internal ALB and the NLB; default listener responses are `200 <project> - <region>`; security groups use `name_prefix` + `create_before_destroy` (safe replacement while attached). Everything translated to English. **Upgrading a deployed v0.2.0 replaces the security groups** (new descriptions/names), without downtime thanks to `create_before_destroy`. |
 | `v0.2.0` | `cluster-ecs` module. |
 | `v0.1.0` | `vpc` module. |

@@ -23,3 +23,6 @@ resource "aws_ecs_cluster_capacity_providers" "main" {
 data "aws_vpc" "main" {
   id = var.vpc_id
 }
+
+# Region of the provider passed in by the caller (the module never configures one itself).
+data "aws_region" "current" {}

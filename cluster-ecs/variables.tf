@@ -44,3 +44,9 @@ variable "container_insights" {
     error_message = "container_insights must be enabled, enhanced or disabled."
   }
 }
+
+variable "acm_certs" {
+  type        = list(string)
+  description = "ACM certificate ARNs for HTTPS on the internal ALB and the NLB. The first one is the listener default; the others are added for SNI. Empty = HTTP only"
+  default     = []
+}
