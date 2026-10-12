@@ -62,7 +62,13 @@ resource "aws_lb" "vpc_link" {
 
 # ------------------------------------------------------------------ HTTP (80)
 resource "aws_lb_target_group" "vpc_link" {
-  name        = trimsuffix(substr(format("%s-vpc-link", var.project_name), 0, 32), "-")
+  name = trimsuffix(substr(format("%s-vpc-link", var.project_name), 0, 32), "-")
+
+  # Destroy order: this target group (whose deletion drops the ALB registration immediately)
+  # must go before the ALB listener it points at. Deregistering the attachment alone is not
+  # enough: the ALB stays "draining" for the deregistration delay, and AWS refuses to delete the
+  # listener meanwhile (ResourceInUse).
+  depends_on  = [aws_lb_listener.http_internal]
   port        = 80
   protocol    = "TCP"
   vpc_id      = var.vpc_id
@@ -104,7 +110,10 @@ resource "aws_lb_target_group_attachment" "internal_lb" {
 resource "aws_lb_target_group" "vpc_link_https" {
   count = length(var.acm_certs) > 0 ? 1 : 0
 
-  name        = trimsuffix(substr(format("%s-vpc-link-https", var.project_name), 0, 32), "-")
+  name = trimsuffix(substr(format("%s-vpc-link-https", var.project_name), 0, 32), "-")
+
+  # Same destroy-order reason as the HTTP target group above.
+  depends_on  = [aws_lb_listener.https_internal]
   port        = 443
   protocol    = "TCP"
   vpc_id      = var.vpc_id

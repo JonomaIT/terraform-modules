@@ -15,7 +15,7 @@ Always pin a SemVer tag, never a branch:
 
 ```hcl
 module "vpc" {
-  source = "git::https://github.com/JonomaIT/terraform-modules.git//vpc?ref=v0.5.0"
+  source = "git::https://github.com/JonomaIT/terraform-modules.git//vpc?ref=v0.5.1"
 
   project_name    = "example"
   cidr            = "10.0.0.0/16"
@@ -24,7 +24,7 @@ module "vpc" {
 }
 ```
 
-A tag versions the whole repo: `v0.5.0` applies to every module.
+A tag versions the whole repo: `v0.5.1` applies to every module.
 
 ## Module rules
 
@@ -38,6 +38,7 @@ A tag versions the whole repo: `v0.5.0` applies to every module.
 
 | Tag | Change |
 |---|---|
+| `v0.5.1` | `cluster-ecs`: destroy no longer fails with `ResourceInUse` on the internal ALB listeners. The NLB target groups now depend on those listeners, so they are deleted first (dropping the ALB registration immediately, without waiting for the deregistration delay). |
 | `v0.5.0` | `cluster-ecs`: `ingress_ports` chooses which ports `ingress_cidrs` may use (e.g. `[443]` to refuse plain HTTP from outside the VPC, failing closed). The VPC keeps 80 and 443. Default `[80, 443]` keeps v0.4.0 behavior. |
 | `v0.4.0` | `cluster-ecs`: `ingress_cidrs` restricts ports 80/443 of the NLB and internal ALB (VPC CIDR always allowed); `external_lb_enabled` makes the external ALB optional (external outputs become `null` when disabled); internal ALB answers `(internal, http)` / `(internal, https)` to show how a request arrived. Defaults keep v0.3.x behavior, and `moved` blocks avoid recreating anything when upgrading with them. |
 | `v0.3.1` | `cluster-ecs`: internal ALB accepts HTTP/HTTPS from any source. The NLB preserves the client IP, so traffic through Global Accelerator was being dropped by the VPC-only rule. The ALB stays internal. |
