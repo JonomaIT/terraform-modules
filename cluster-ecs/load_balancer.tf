@@ -1,21 +1,26 @@
-# Load balancer externo: entrada pública do cluster.
+# External load balancer: public entry point of the cluster.
 resource "aws_security_group" "lb" {
-  name        = format("%s-loadbalancer", var.project_name)
-  description = "Load balancer externo: HTTP/HTTPS da internet, saida so para a VPC"
+  name_prefix = format("%s-lb-", var.project_name)
+  description = "External load balancer: HTTP/HTTPS from the internet, egress only to the VPC"
   vpc_id      = var.vpc_id
 
   egress {
-    description = "Saida para os targets dentro da VPC"
+    description = "Egress to targets inside the VPC"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = [data.aws_vpc.main.cidr_block]
   }
+
+  # A security group in use by a load balancer cannot be deleted: create the new one first.
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 resource "aws_vpc_security_group_ingress_rule" "lb_http" {
   security_group_id = aws_security_group.lb.id
-  description       = "HTTP da internet"
+  description       = "HTTP from the internet"
   ip_protocol       = "tcp"
   from_port         = 80
   to_port           = 80
@@ -24,7 +29,7 @@ resource "aws_vpc_security_group_ingress_rule" "lb_http" {
 
 resource "aws_vpc_security_group_ingress_rule" "lb_https" {
   security_group_id = aws_security_group.lb.id
-  description       = "HTTPS da internet"
+  description       = "HTTPS from the internet"
   ip_protocol       = "tcp"
   from_port         = 443
   to_port           = 443
@@ -46,7 +51,8 @@ resource "aws_lb" "main" {
   }
 }
 
-# Sem certificado ainda: só HTTP, com 404 padrão. Cada serviço pendura a sua listener rule.
+# No certificate yet: HTTP only. Until a service attaches its own listener rule, the default
+# response is a 200 naming the project and region, which makes multi-region routing visible.
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.main.arn
   port              = 80
@@ -57,8 +63,8 @@ resource "aws_lb_listener" "http" {
 
     fixed_response {
       content_type = "text/plain"
-      message_body = "404: Not Found"
-      status_code  = "404"
+      message_body = format("%s - %s", var.project_name, data.aws_region.current.region)
+      status_code  = "200"
     }
   }
 }

@@ -1,11 +1,11 @@
 variable "project_name" {
   type        = string
-  description = "Nome do projeto. Essa variável será um prefixo para os recursos criados dentro desse projeto"
+  description = "Project name, used as a prefix for every resource created by this module"
 }
 
 variable "cidr" {
   type        = string
-  description = "Bloco CIDR da VPC (ex: 10.0.0.0/16)"
+  description = "VPC CIDR block (e.g. 10.0.0.0/16)"
 }
 
 variable "private_subnets" {
@@ -14,13 +14,13 @@ variable "private_subnets" {
     cidr              = string
     availability_zone = string
   }))
-  description = "Subnets privadas. Cada AZ usada aqui precisa ter uma subnet pública, onde fica o NAT Gateway dela"
+  description = "Private subnets. Every AZ used here needs a public subnet, which hosts that AZ's NAT Gateway"
 
   validation {
     condition = alltrue([
       for s in var.private_subnets : contains(var.public_subnets[*].availability_zone, s.availability_zone)
     ])
-    error_message = "Toda subnet privada precisa de uma subnet pública na mesma availability_zone (é onde fica o NAT Gateway da AZ)."
+    error_message = "Every private subnet needs a public subnet in the same availability_zone (it hosts the AZ's NAT Gateway)."
   }
 }
 
@@ -30,10 +30,10 @@ variable "public_subnets" {
     cidr              = string
     availability_zone = string
   }))
-  description = "Subnets públicas. Cada uma recebe um NAT Gateway, usado pelas subnets privadas da mesma AZ"
+  description = "Public subnets. Each one gets a NAT Gateway, used by the private subnets in the same AZ"
 
   validation {
     condition     = length(distinct(var.public_subnets[*].availability_zone)) == length(var.public_subnets)
-    error_message = "No máximo uma subnet pública por availability_zone."
+    error_message = "At most one public subnet per availability_zone."
   }
 }

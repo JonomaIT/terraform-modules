@@ -1,46 +1,52 @@
 variable "project_name" {
   type        = string
-  description = "Nome do projeto. Prefixo de todos os recursos criados (ex: jonomait-ecs)"
+  description = "Project name, used as a prefix for every resource created (e.g. jonomait-ecs)"
 
   validation {
     condition     = can(regex("^[a-z0-9-]{1,20}$", var.project_name))
-    error_message = "project_name deve ter até 20 caracteres, só minúsculas, números e hífen (os nomes de load balancer têm limite de 32)."
+    error_message = "project_name must be up to 20 characters of lowercase letters, digits and hyphens (load balancer names are limited to 32)."
   }
 }
 
 variable "vpc_id" {
   type        = string
-  description = "ID da VPC onde o cluster e os load balancers serão criados"
+  description = "ID of the VPC where the cluster and load balancers are created"
 }
 
 variable "public_subnets" {
   type        = list(string)
-  description = "IDs das subnets públicas, usadas pelo load balancer externo"
+  description = "Public subnet IDs, used by the external load balancer"
 }
 
 variable "private_subnets" {
   type        = list(string)
-  description = "IDs das subnets privadas, usadas pelo load balancer interno e pelo NLB do VPC Link"
+  description = "Private subnet IDs, used by the internal load balancer and the VPC Link NLB"
 }
 
 variable "capacity_providers" {
   type        = list(string)
-  description = "Capacity providers do cluster"
+  description = "Cluster capacity providers"
   default     = ["FARGATE", "FARGATE_SPOT"]
 
   validation {
     condition     = contains(var.capacity_providers, "FARGATE")
-    error_message = "capacity_providers precisa incluir FARGATE, que é a estratégia padrão do cluster."
+    error_message = "capacity_providers must include FARGATE, the cluster's default strategy."
   }
 }
 
 variable "container_insights" {
   type        = string
-  description = "Container Insights do cluster: enabled, enhanced ou disabled (enabled/enhanced geram custo no CloudWatch)"
+  description = "Cluster Container Insights: enabled, enhanced or disabled (enabled/enhanced incur CloudWatch costs)"
   default     = "enabled"
 
   validation {
     condition     = contains(["enabled", "enhanced", "disabled"], var.container_insights)
-    error_message = "container_insights deve ser enabled, enhanced ou disabled."
+    error_message = "container_insights must be enabled, enhanced or disabled."
   }
+}
+
+variable "acm_certs" {
+  type        = list(string)
+  description = "ACM certificate ARNs for HTTPS on the internal ALB and the NLB. The first one is the listener default; the others are added for SNI. Empty = HTTP only"
+  default     = []
 }

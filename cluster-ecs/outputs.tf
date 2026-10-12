@@ -1,74 +1,74 @@
 output "cluster_name" {
-  description = "Nome do cluster ECS"
+  description = "ECS cluster name"
   value       = aws_ecs_cluster.main.name
 }
 
 output "cluster_arn" {
-  description = "ARN do cluster ECS"
+  description = "ECS cluster ARN"
   value       = aws_ecs_cluster.main.arn
 }
 
 output "lb_external_arn" {
-  description = "ARN do load balancer externo"
+  description = "External load balancer ARN"
   value       = aws_lb.main.arn
 }
 
 output "lb_external_dns" {
-  description = "DNS do load balancer externo"
+  description = "External load balancer DNS name"
   value       = aws_lb.main.dns_name
 }
 
 output "lb_external_listener_arn" {
-  description = "ARN do listener HTTP do load balancer externo"
+  description = "External load balancer HTTP listener ARN"
   value       = aws_lb_listener.http.arn
 }
 
 output "lb_internal_arn" {
-  description = "ARN do load balancer interno"
+  description = "Internal load balancer ARN"
   value       = aws_lb.internal.arn
 }
 
 output "lb_internal_dns" {
-  description = "DNS do load balancer interno"
+  description = "Internal load balancer DNS name"
   value       = aws_lb.internal.dns_name
 }
 
 output "lb_internal_listener_arn" {
-  description = "ARN do listener HTTP do load balancer interno"
+  description = "Internal load balancer HTTP listener ARN"
   value       = aws_lb_listener.http_internal.arn
 }
 
 output "internal_zone_name" {
-  description = "Zona privada do Route 53 que aponta para o load balancer interno"
+  description = "Private Route 53 zone pointing to the internal load balancer"
   value       = aws_route53_zone.private.name
 }
 
 output "service_discovery_namespace_id" {
-  description = "ID do namespace Cloud Map de service discovery"
+  description = "Cloud Map service discovery namespace ID"
   value       = aws_service_discovery_private_dns_namespace.service_discovery.id
 }
 
 output "service_discovery_namespace_name" {
-  description = "Nome do namespace Cloud Map de service discovery"
+  description = "Cloud Map service discovery namespace name"
   value       = aws_service_discovery_private_dns_namespace.service_discovery.name
 }
 
 output "service_connect_namespace_id" {
-  description = "ID do namespace Cloud Map do Service Connect"
+  description = "Cloud Map Service Connect namespace ID"
   value       = aws_service_discovery_private_dns_namespace.service_connect.id
 }
 
 output "service_connect_namespace_name" {
-  description = "Nome do namespace Cloud Map do Service Connect"
+  description = "Cloud Map Service Connect namespace name"
   value       = aws_service_discovery_private_dns_namespace.service_connect.name
 }
 
 output "vpc_link_id" {
-  description = "ID do VPC Link do API Gateway"
+  description = "API Gateway VPC Link ID"
   value       = aws_api_gateway_vpc_link.main.id
 }
 
 output "vpc_link_nlb_arn" {
-  description = "ARN do NLB alvo do VPC Link"
+  description = "ARN of the NLB targeted by the VPC Link"
   value       = aws_lb.vpc_link.arn
 }
