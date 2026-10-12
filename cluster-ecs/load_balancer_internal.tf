@@ -1,8 +1,8 @@
 # Internal load balancer: service-to-service traffic and the VPC Link / Global Accelerator entry
-# point (through the NLB). Only accepts traffic from inside the VPC.
+# point (through the NLB).
 resource "aws_security_group" "lb_internal" {
   name_prefix = format("%s-lb-internal-", var.project_name)
-  description = "Internal load balancer: HTTP/HTTPS only from inside the VPC"
+  description = "Internal load balancer: HTTP/HTTPS from the NLB clients and the VPC"
   vpc_id      = var.vpc_id
 
   egress {
@@ -19,22 +19,27 @@ resource "aws_security_group" "lb_internal" {
   }
 }
 
+# Open to any source on purpose: the NLB target group (type alb) preserves the client IP, so
+# requests coming through Global Accelerator reach this ALB with internet source addresses.
+# Restricting to the VPC CIDR silently drops them (health checks still pass, since they come
+# from the NLB). The ALB itself is internal (no public IP): it is only reachable through the
+# NLB, from inside the VPC or over the peering.
 resource "aws_vpc_security_group_ingress_rule" "lb_internal_http" {
   security_group_id = aws_security_group.lb_internal.id
-  description       = "HTTP from inside the VPC"
+  description       = "HTTP from NLB clients (client IP preserved) and the VPC"
   ip_protocol       = "tcp"
   from_port         = 80
   to_port           = 80
-  cidr_ipv4         = data.aws_vpc.main.cidr_block
+  cidr_ipv4         = "0.0.0.0/0"
 }
 
 resource "aws_vpc_security_group_ingress_rule" "lb_internal_https" {
   security_group_id = aws_security_group.lb_internal.id
-  description       = "HTTPS from inside the VPC"
+  description       = "HTTPS from NLB clients (client IP preserved) and the VPC"
   ip_protocol       = "tcp"
   from_port         = 443
   to_port           = 443
-  cidr_ipv4         = data.aws_vpc.main.cidr_block
+  cidr_ipv4         = "0.0.0.0/0"
 }
 
 resource "aws_lb" "internal" {
