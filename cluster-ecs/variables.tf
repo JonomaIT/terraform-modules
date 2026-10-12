@@ -67,3 +67,14 @@ variable "external_lb_enabled" {
   description = "Create the internet-facing ALB. Disable it when every request must come through another entry point (e.g. Cloudflare → Global Accelerator → internal NLB)"
   default     = true
 }
+
+variable "ingress_ports" {
+  type        = list(number)
+  description = "Ports opened to ingress_cidrs. Use [443] to refuse plain HTTP from outside the VPC (fail closed: if the edge stops redirecting to HTTPS, HTTP requests fail instead of crossing the internet unencrypted). The VPC CIDR always keeps 80 and 443"
+  default     = [80, 443]
+
+  validation {
+    condition     = length(var.ingress_ports) > 0 && alltrue([for p in var.ingress_ports : contains([80, 443], p)])
+    error_message = "ingress_ports must be a non-empty subset of [80, 443]."
+  }
+}

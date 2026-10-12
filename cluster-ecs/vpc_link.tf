@@ -20,15 +20,19 @@ resource "aws_security_group" "vpc_link" {
   }
 }
 
-# Allowed sources (var.ingress_cidrs) plus the VPC CIDR, on ports 80 and 443.
+# Allowed sources (var.ingress_cidrs) on var.ingress_ports, plus the VPC CIDR on 80 and 443.
 # Global Accelerator traffic keeps the client IP (internet clients, or Cloudflare when the public
 # name is proxied). The NLB itself is internal (no public IP): it is only reachable through Global
 # Accelerator, the VPC Link or from inside the VPC.
 resource "aws_vpc_security_group_ingress_rule" "vpc_link" {
-  for_each = {
-    for pair in setproduct(distinct(concat(var.ingress_cidrs, [data.aws_vpc.main.cidr_block])), [80, 443]) :
+  for_each = merge({
+    for pair in setproduct(var.ingress_cidrs, var.ingress_ports) :
     "${pair[0]}-${pair[1]}" => { cidr = pair[0], port = pair[1] }
-  }
+    }, {
+    # The VPC always gets both ports: service-to-service traffic, NLB health checks, VPC Link.
+    for port in [80, 443] :
+    "${data.aws_vpc.main.cidr_block}-${port}" => { cidr = data.aws_vpc.main.cidr_block, port = port }
+  })
 
   security_group_id = aws_security_group.vpc_link.id
   description       = format("Port %d from %s", each.value.port, each.value.cidr)
