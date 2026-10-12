@@ -1,7 +1,9 @@
-# External load balancer: public entry point of the cluster.
+# External load balancer: internet-facing entry point of the cluster (optional).
 resource "aws_security_group" "lb" {
+  count = var.external_lb_enabled ? 1 : 0
+
   name_prefix = format("%s-lb-", var.project_name)
-  description = "External load balancer: HTTP/HTTPS from the internet, egress only to the VPC"
+  description = "External load balancer: HTTP/HTTPS from the allowed sources, egress only to the VPC"
   vpc_id      = var.vpc_id
 
   egress {
@@ -18,29 +20,26 @@ resource "aws_security_group" "lb" {
   }
 }
 
-resource "aws_vpc_security_group_ingress_rule" "lb_http" {
-  security_group_id = aws_security_group.lb.id
-  description       = "HTTP from the internet"
-  ip_protocol       = "tcp"
-  from_port         = 80
-  to_port           = 80
-  cidr_ipv4         = "0.0.0.0/0"
-}
+resource "aws_vpc_security_group_ingress_rule" "lb" {
+  for_each = var.external_lb_enabled ? {
+    for pair in setproduct(var.ingress_cidrs, [80, 443]) : "${pair[0]}-${pair[1]}" => { cidr = pair[0], port = pair[1] }
+  } : {}
 
-resource "aws_vpc_security_group_ingress_rule" "lb_https" {
-  security_group_id = aws_security_group.lb.id
-  description       = "HTTPS from the internet"
+  security_group_id = aws_security_group.lb[0].id
+  description       = format("Port %d from %s", each.value.port, each.value.cidr)
   ip_protocol       = "tcp"
-  from_port         = 443
-  to_port           = 443
-  cidr_ipv4         = "0.0.0.0/0"
+  from_port         = each.value.port
+  to_port           = each.value.port
+  cidr_ipv4         = each.value.cidr
 }
 
 resource "aws_lb" "main" {
+  count = var.external_lb_enabled ? 1 : 0
+
   name               = trimsuffix(substr(format("%s-ingress", var.project_name), 0, 32), "-")
   internal           = false
   load_balancer_type = "application"
-  security_groups    = [aws_security_group.lb.id]
+  security_groups    = [aws_security_group.lb[0].id]
   subnets            = var.public_subnets
 
   drop_invalid_header_fields = true
@@ -54,7 +53,9 @@ resource "aws_lb" "main" {
 # No certificate yet: HTTP only. Until a service attaches its own listener rule, the default
 # response is a 200 naming the project and region, which makes multi-region routing visible.
 resource "aws_lb_listener" "http" {
-  load_balancer_arn = aws_lb.main.arn
+  count = var.external_lb_enabled ? 1 : 0
+
+  load_balancer_arn = aws_lb.main[0].arn
   port              = 80
   protocol          = "HTTP"
 
@@ -67,4 +68,30 @@ resource "aws_lb_listener" "http" {
       status_code  = "200"
     }
   }
+}
+
+# v0.3.x → v0.4.0: the external ALB became optional (count) and its rules follow ingress_cidrs.
+moved {
+  from = aws_security_group.lb
+  to   = aws_security_group.lb[0]
+}
+
+moved {
+  from = aws_lb.main
+  to   = aws_lb.main[0]
+}
+
+moved {
+  from = aws_lb_listener.http
+  to   = aws_lb_listener.http[0]
+}
+
+moved {
+  from = aws_vpc_security_group_ingress_rule.lb_http
+  to   = aws_vpc_security_group_ingress_rule.lb["0.0.0.0/0-80"]
+}
+
+moved {
+  from = aws_vpc_security_group_ingress_rule.lb_https
+  to   = aws_vpc_security_group_ingress_rule.lb["0.0.0.0/0-443"]
 }

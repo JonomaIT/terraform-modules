@@ -9,18 +9,18 @@ output "cluster_arn" {
 }
 
 output "lb_external_arn" {
-  description = "External load balancer ARN"
-  value       = aws_lb.main.arn
+  description = "External load balancer ARN (null when external_lb_enabled = false)"
+  value       = one(aws_lb.main[*].arn)
 }
 
 output "lb_external_dns" {
-  description = "External load balancer DNS name"
-  value       = aws_lb.main.dns_name
+  description = "External load balancer DNS name (null when external_lb_enabled = false)"
+  value       = one(aws_lb.main[*].dns_name)
 }
 
 output "lb_external_listener_arn" {
-  description = "External load balancer HTTP listener ARN"
-  value       = aws_lb_listener.http.arn
+  description = "External load balancer HTTP listener ARN (null when external_lb_enabled = false)"
+  value       = one(aws_lb_listener.http[*].arn)
 }
 
 output "lb_internal_arn" {
