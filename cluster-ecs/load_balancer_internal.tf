@@ -19,16 +19,20 @@ resource "aws_security_group" "lb_internal" {
   }
 }
 
-# Allowed sources (var.ingress_cidrs) plus the VPC CIDR, on ports 80 and 443.
+# Allowed sources (var.ingress_cidrs) on var.ingress_ports, plus the VPC CIDR on 80 and 443.
 # The NLB target group (type alb) preserves the client IP, so requests coming through Global
 # Accelerator reach this ALB with their original source address (internet clients, or Cloudflare
 # when the public name is proxied). That is why the allowed sources must be listed here too, and
 # not only on the NLB. The VPC CIDR covers internal traffic and the NLB health checks.
 resource "aws_vpc_security_group_ingress_rule" "lb_internal" {
-  for_each = {
-    for pair in setproduct(distinct(concat(var.ingress_cidrs, [data.aws_vpc.main.cidr_block])), [80, 443]) :
+  for_each = merge({
+    for pair in setproduct(var.ingress_cidrs, var.ingress_ports) :
     "${pair[0]}-${pair[1]}" => { cidr = pair[0], port = pair[1] }
-  }
+    }, {
+    # The VPC always gets both ports: service-to-service traffic, NLB health checks, VPC Link.
+    for port in [80, 443] :
+    "${data.aws_vpc.main.cidr_block}-${port}" => { cidr = data.aws_vpc.main.cidr_block, port = port }
+  })
 
   security_group_id = aws_security_group.lb_internal.id
   description       = format("Port %d from %s", each.value.port, each.value.cidr)

@@ -22,7 +22,7 @@ resource "aws_security_group" "lb" {
 
 resource "aws_vpc_security_group_ingress_rule" "lb" {
   for_each = var.external_lb_enabled ? {
-    for pair in setproduct(var.ingress_cidrs, [80, 443]) : "${pair[0]}-${pair[1]}" => { cidr = pair[0], port = pair[1] }
+    for pair in setproduct(var.ingress_cidrs, var.ingress_ports) : "${pair[0]}-${pair[1]}" => { cidr = pair[0], port = pair[1] }
   } : {}
 
   security_group_id = aws_security_group.lb[0].id
