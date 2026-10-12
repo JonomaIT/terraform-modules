@@ -50,3 +50,20 @@ variable "acm_certs" {
   description = "ACM certificate ARNs for HTTPS on the internal ALB and the NLB. The first one is the listener default; the others are added for SNI. Empty = HTTP only"
   default     = []
 }
+
+variable "ingress_cidrs" {
+  type        = list(string)
+  description = "Sources allowed on ports 80/443 of the internal NLB and internal ALB (and of the external ALB, when enabled). The VPC CIDR is always allowed on top of these (internal traffic, health checks, VPC Link). E.g. Cloudflare's IP ranges to accept traffic only through Cloudflare"
+  default     = ["0.0.0.0/0"]
+
+  validation {
+    condition     = length(var.ingress_cidrs) > 0 && alltrue([for c in var.ingress_cidrs : can(cidrnetmask(c))])
+    error_message = "ingress_cidrs needs at least one valid IPv4 CIDR."
+  }
+}
+
+variable "external_lb_enabled" {
+  type        = bool
+  description = "Create the internet-facing ALB. Disable it when every request must come through another entry point (e.g. Cloudflare → Global Accelerator → internal NLB)"
+  default     = true
+}

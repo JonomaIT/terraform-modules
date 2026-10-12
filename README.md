@@ -7,7 +7,7 @@ Terraform module library for JonomaIT. Modules describe **how** to build things;
 | Module | What it creates |
 |---|---|
 | [`vpc`](vpc/) | VPC with public subnets (Internet Gateway) and private subnets, with one NAT Gateway per AZ. |
-| [`cluster-ecs`](cluster-ecs/) | ECS cluster (Fargate and Fargate Spot), external ALB, internal ALB, private zone `<project>.internal`, Cloud Map namespaces (service discovery and Service Connect) and an internal NLB in front of the internal ALB, used by an API Gateway VPC Link and as a Global Accelerator endpoint. Optional HTTPS with `acm_certs`. |
+| [`cluster-ecs`](cluster-ecs/) | ECS cluster (Fargate and Fargate Spot), external ALB, internal ALB, private zone `<project>.internal`, Cloud Map namespaces (service discovery and Service Connect) and an internal NLB in front of the internal ALB, used by an API Gateway VPC Link and as a Global Accelerator endpoint. Optional HTTPS with `acm_certs`; allowed sources with `ingress_cidrs` (e.g. only Cloudflare); external ALB optional with `external_lb_enabled`. |
 
 ## Usage
 
@@ -15,7 +15,7 @@ Always pin a SemVer tag, never a branch:
 
 ```hcl
 module "vpc" {
-  source = "git::https://github.com/JonomaIT/terraform-modules.git//vpc?ref=v0.3.1"
+  source = "git::https://github.com/JonomaIT/terraform-modules.git//vpc?ref=v0.4.0"
 
   project_name    = "example"
   cidr            = "10.0.0.0/16"
@@ -24,7 +24,7 @@ module "vpc" {
 }
 ```
 
-A tag versions the whole repo: `v0.3.1` applies to every module.
+A tag versions the whole repo: `v0.4.0` applies to every module.
 
 ## Module rules
 
@@ -38,6 +38,7 @@ A tag versions the whole repo: `v0.3.1` applies to every module.
 
 | Tag | Change |
 |---|---|
+| `v0.4.0` | `cluster-ecs`: `ingress_cidrs` restricts ports 80/443 of the NLB and internal ALB (VPC CIDR always allowed); `external_lb_enabled` makes the external ALB optional (external outputs become `null` when disabled); internal ALB answers `(internal, http)` / `(internal, https)` to show how a request arrived. Defaults keep v0.3.x behavior, and `moved` blocks avoid recreating anything when upgrading with them. |
 | `v0.3.1` | `cluster-ecs`: internal ALB accepts HTTP/HTTPS from any source. The NLB preserves the client IP, so traffic through Global Accelerator was being dropped by the VPC-only rule. The ALB stays internal. |
 | `v0.3.0` | `cluster-ecs`: NLB open to Global Accelerator traffic; optional HTTPS (`acm_certs`) on the internal ALB and the NLB; default listener responses are `200 <project> - <region>`; security groups use `name_prefix` + `create_before_destroy` (safe replacement while attached). Everything translated to English. **Upgrading a deployed v0.2.0 replaces the security groups** (new descriptions/names), without downtime thanks to `create_before_destroy`. |
 | `v0.2.0` | `cluster-ecs` module. |

@@ -3,7 +3,7 @@
 #   - Global Accelerator → NLB → internal ALB (multi-region routing)
 resource "aws_security_group" "vpc_link" {
   name_prefix = format("%s-vpc-link-", var.project_name)
-  description = "VPC Link and Global Accelerator NLB: HTTP/HTTPS from any source"
+  description = "VPC Link and Global Accelerator NLB: HTTP/HTTPS from the allowed sources and the VPC"
   vpc_id      = var.vpc_id
 
   egress {
@@ -20,26 +20,22 @@ resource "aws_security_group" "vpc_link" {
   }
 }
 
-# Open to any source on purpose: Global Accelerator traffic arrives from public addresses
-# (its edge network, or the client IP when client IP preservation is on). The NLB itself is
-# internal (no public IP): it is only reachable through Global Accelerator, the VPC Link or
-# from inside the VPC.
-resource "aws_vpc_security_group_ingress_rule" "vpc_link_http" {
-  security_group_id = aws_security_group.vpc_link.id
-  description       = "HTTP from Global Accelerator clients, the VPC Link and the VPC"
-  ip_protocol       = "tcp"
-  from_port         = 80
-  to_port           = 80
-  cidr_ipv4         = "0.0.0.0/0"
-}
+# Allowed sources (var.ingress_cidrs) plus the VPC CIDR, on ports 80 and 443.
+# Global Accelerator traffic keeps the client IP (internet clients, or Cloudflare when the public
+# name is proxied). The NLB itself is internal (no public IP): it is only reachable through Global
+# Accelerator, the VPC Link or from inside the VPC.
+resource "aws_vpc_security_group_ingress_rule" "vpc_link" {
+  for_each = {
+    for pair in setproduct(distinct(concat(var.ingress_cidrs, [data.aws_vpc.main.cidr_block])), [80, 443]) :
+    "${pair[0]}-${pair[1]}" => { cidr = pair[0], port = pair[1] }
+  }
 
-resource "aws_vpc_security_group_ingress_rule" "vpc_link_https" {
   security_group_id = aws_security_group.vpc_link.id
-  description       = "HTTPS from Global Accelerator clients, the VPC Link and the VPC"
+  description       = format("Port %d from %s", each.value.port, each.value.cidr)
   ip_protocol       = "tcp"
-  from_port         = 443
-  to_port           = 443
-  cidr_ipv4         = "0.0.0.0/0"
+  from_port         = each.value.port
+  to_port           = each.value.port
+  cidr_ipv4         = each.value.cidr
 }
 
 resource "aws_lb" "vpc_link" {
@@ -153,4 +149,15 @@ resource "aws_api_gateway_vpc_link" "main" {
   name        = format("%s-vpc-link", var.project_name)
   description = format("API Gateway VPC Link to the internal NLB of %s", var.project_name)
   target_arns = [aws_lb.vpc_link.arn]
+}
+
+# v0.3.x → v0.4.0: the rules became one per (source, port).
+moved {
+  from = aws_vpc_security_group_ingress_rule.vpc_link_http
+  to   = aws_vpc_security_group_ingress_rule.vpc_link["0.0.0.0/0-80"]
+}
+
+moved {
+  from = aws_vpc_security_group_ingress_rule.vpc_link_https
+  to   = aws_vpc_security_group_ingress_rule.vpc_link["0.0.0.0/0-443"]
 }

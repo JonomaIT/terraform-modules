@@ -2,7 +2,7 @@
 # point (through the NLB).
 resource "aws_security_group" "lb_internal" {
   name_prefix = format("%s-lb-internal-", var.project_name)
-  description = "Internal load balancer: HTTP/HTTPS from the NLB clients and the VPC"
+  description = "Internal load balancer: HTTP/HTTPS from the allowed sources and the VPC"
   vpc_id      = var.vpc_id
 
   egress {
@@ -19,27 +19,23 @@ resource "aws_security_group" "lb_internal" {
   }
 }
 
-# Open to any source on purpose: the NLB target group (type alb) preserves the client IP, so
-# requests coming through Global Accelerator reach this ALB with internet source addresses.
-# Restricting to the VPC CIDR silently drops them (health checks still pass, since they come
-# from the NLB). The ALB itself is internal (no public IP): it is only reachable through the
-# NLB, from inside the VPC or over the peering.
-resource "aws_vpc_security_group_ingress_rule" "lb_internal_http" {
-  security_group_id = aws_security_group.lb_internal.id
-  description       = "HTTP from NLB clients (client IP preserved) and the VPC"
-  ip_protocol       = "tcp"
-  from_port         = 80
-  to_port           = 80
-  cidr_ipv4         = "0.0.0.0/0"
-}
+# Allowed sources (var.ingress_cidrs) plus the VPC CIDR, on ports 80 and 443.
+# The NLB target group (type alb) preserves the client IP, so requests coming through Global
+# Accelerator reach this ALB with their original source address (internet clients, or Cloudflare
+# when the public name is proxied). That is why the allowed sources must be listed here too, and
+# not only on the NLB. The VPC CIDR covers internal traffic and the NLB health checks.
+resource "aws_vpc_security_group_ingress_rule" "lb_internal" {
+  for_each = {
+    for pair in setproduct(distinct(concat(var.ingress_cidrs, [data.aws_vpc.main.cidr_block])), [80, 443]) :
+    "${pair[0]}-${pair[1]}" => { cidr = pair[0], port = pair[1] }
+  }
 
-resource "aws_vpc_security_group_ingress_rule" "lb_internal_https" {
   security_group_id = aws_security_group.lb_internal.id
-  description       = "HTTPS from NLB clients (client IP preserved) and the VPC"
+  description       = format("Port %d from %s", each.value.port, each.value.cidr)
   ip_protocol       = "tcp"
-  from_port         = 443
-  to_port           = 443
-  cidr_ipv4         = "0.0.0.0/0"
+  from_port         = each.value.port
+  to_port           = each.value.port
+  cidr_ipv4         = each.value.cidr
 }
 
 resource "aws_lb" "internal" {
@@ -67,7 +63,7 @@ resource "aws_lb_listener" "http_internal" {
 
     fixed_response {
       content_type = "text/plain"
-      message_body = format("%s - %s (internal)", var.project_name, data.aws_region.current.region)
+      message_body = format("%s - %s (internal, http)", var.project_name, data.aws_region.current.region)
       status_code  = "200"
     }
   }
@@ -89,7 +85,7 @@ resource "aws_lb_listener" "https_internal" {
 
     fixed_response {
       content_type = "text/plain"
-      message_body = format("%s - %s (internal)", var.project_name, data.aws_region.current.region)
+      message_body = format("%s - %s (internal, https)", var.project_name, data.aws_region.current.region)
       status_code  = "200"
     }
   }
@@ -100,4 +96,15 @@ resource "aws_lb_listener_certificate" "https_internal" {
 
   listener_arn    = aws_lb_listener.https_internal[0].arn
   certificate_arn = each.value
+}
+
+# v0.3.x → v0.4.0: the rules became one per (source, port).
+moved {
+  from = aws_vpc_security_group_ingress_rule.lb_internal_http
+  to   = aws_vpc_security_group_ingress_rule.lb_internal["0.0.0.0/0-80"]
+}
+
+moved {
+  from = aws_vpc_security_group_ingress_rule.lb_internal_https
+  to   = aws_vpc_security_group_ingress_rule.lb_internal["0.0.0.0/0-443"]
 }
