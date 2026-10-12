@@ -47,7 +47,7 @@ resource "aws_route" "private" {
 
   route_table_id = aws_route_table.private[count.index].id
 
-  # NAT da mesma AZ da subnet privada, achado pela AZ (não pela posição na lista)
+  # NAT Gateway in the same AZ as the private subnet, matched by AZ name (not by list position)
   nat_gateway_id = aws_nat_gateway.private[
     index(var.public_subnets[*].availability_zone, var.private_subnets[count.index].availability_zone)
   ].id

@@ -1,12 +1,12 @@
-# Load balancer interno: tráfego entre serviços e entrada do VPC Link (via NLB).
-# Só aceita origem de dentro da VPC.
+# Internal load balancer: service-to-service traffic and the VPC Link entry point (through the NLB).
+# Only accepts traffic from inside the VPC.
 resource "aws_security_group" "lb_internal" {
   name        = format("%s-loadbalancer-internal", var.project_name)
-  description = "Load balancer interno: HTTP/HTTPS so de dentro da VPC"
+  description = "Internal load balancer: HTTP/HTTPS only from inside the VPC"
   vpc_id      = var.vpc_id
 
   egress {
-    description = "Saida para os targets dentro da VPC"
+    description = "Egress to targets inside the VPC"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
@@ -16,7 +16,7 @@ resource "aws_security_group" "lb_internal" {
 
 resource "aws_vpc_security_group_ingress_rule" "lb_internal_http" {
   security_group_id = aws_security_group.lb_internal.id
-  description       = "HTTP de dentro da VPC"
+  description       = "HTTP from inside the VPC"
   ip_protocol       = "tcp"
   from_port         = 80
   to_port           = 80
@@ -25,7 +25,7 @@ resource "aws_vpc_security_group_ingress_rule" "lb_internal_http" {
 
 resource "aws_vpc_security_group_ingress_rule" "lb_internal_https" {
   security_group_id = aws_security_group.lb_internal.id
-  description       = "HTTPS de dentro da VPC"
+  description       = "HTTPS from inside the VPC"
   ip_protocol       = "tcp"
   from_port         = 443
   to_port           = 443

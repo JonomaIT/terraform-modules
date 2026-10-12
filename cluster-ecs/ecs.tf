@@ -19,7 +19,7 @@ resource "aws_ecs_cluster_capacity_providers" "main" {
   }
 }
 
-# O CIDR é lido da própria VPC, para o consumidor não ter que passar o mesmo dado duas vezes.
+# The CIDR is read from the VPC itself, so callers do not have to pass the same data twice.
 data "aws_vpc" "main" {
   id = var.vpc_id
 }

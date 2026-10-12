@@ -1,42 +1,43 @@
 # terraform-modules
 
-Biblioteca de módulos Terraform da JonomaIT. Os módulos descrevem **como** construir; quem decide **o quê** existe é o repo [`infrastructure`](https://github.com/JonomaIT/infrastructure).
+Terraform module library for JonomaIT. Modules describe **how** to build things; what actually exists is decided by the [`infrastructure`](https://github.com/JonomaIT/infrastructure) repo.
 
-## Módulos
+## Modules
 
-| Módulo | O que cria |
+| Module | What it creates |
 |---|---|
-| [`vpc`](vpc/) | VPC com subnets públicas (Internet Gateway) e privadas, com um NAT Gateway por AZ. |
-| [`cluster-ecs`](cluster-ecs/) | Cluster ECS (Fargate e Fargate Spot), ALB externo, ALB interno, zona privada `<projeto>.internal`, namespaces do Cloud Map (service discovery e Service Connect) e VPC Link do API Gateway via NLB. |
+| [`vpc`](vpc/) | VPC with public subnets (Internet Gateway) and private subnets, with one NAT Gateway per AZ. |
+| [`cluster-ecs`](cluster-ecs/) | ECS cluster (Fargate and Fargate Spot), external ALB, internal ALB, private zone `<project>.internal`, Cloud Map namespaces (service discovery and Service Connect) and an API Gateway VPC Link through an NLB. |
 
-## Uso
+## Usage
 
-Sempre por uma tag SemVer, nunca por branch:
+Always pin a SemVer tag, never a branch:
 
 ```hcl
 module "vpc" {
-  source = "git::https://github.com/JonomaIT/terraform-modules.git//vpc?ref=v0.2.0"
+  source = "git::https://github.com/JonomaIT/terraform-modules.git//vpc?ref=v0.3.0"
 
-  project_name    = "exemplo"
+  project_name    = "example"
   cidr            = "10.0.0.0/16"
   public_subnets  = [{ name = "public-1a", cidr = "10.0.48.0/24", availability_zone = "us-east-1a" }]
   private_subnets = [{ name = "private-1a", cidr = "10.0.0.0/20", availability_zone = "us-east-1a" }]
 }
 ```
 
-A tag versiona o repo inteiro: `v0.2.0` vale para todos os módulos.
+A tag versions the whole repo: `v0.3.0` applies to every module.
 
-## Regras dos módulos
+## Module rules
 
-- Módulo não declara `provider` nem `backend`: quem chama passa os dois.
-- `versions.tf` com a versão mínima do Terraform e do provider AWS.
-- Toda `variable` tem `type` e `description`; todo `output` tem `description`.
-- Nada fixo: região, conta, AZ e IDs vêm de variável ou data source.
-- Validações na própria variável, para o erro aparecer no `plan` e não no meio do `apply`.
+- Modules never declare a `provider` or a `backend`: the caller provides both.
+- `versions.tf` sets the minimum Terraform and AWS provider versions.
+- Every `variable` has a `type` and a `description`; every `output` has a `description`.
+- Nothing hard-coded: region, account, AZs and IDs come from variables or data sources.
+- Validations live on the variable, so errors show up at `plan` time instead of halfway through an `apply`.
 
-## Versões
+## Versions
 
-| Tag | Mudança |
+| Tag | Change |
 |---|---|
-| `v0.2.0` | Módulo `cluster-ecs`. |
-| `v0.1.0` | Módulo `vpc`. |
+| `v0.3.0` | Comments, descriptions and validation messages translated to English. No resource changes besides descriptions. |
+| `v0.2.0` | `cluster-ecs` module. |
+| `v0.1.0` | `vpc` module. |
