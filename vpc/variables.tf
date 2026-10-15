@@ -1,11 +1,11 @@
 variable "project_name" {
   type        = string
-  description = "Project name, used as a prefix for every resource created by this module"
+  description = "Name of the VPC, used as a prefix for every resource created by this module (e.g. jonomait-stg-network)"
 }
 
 variable "cidr" {
   type        = string
-  description = "VPC CIDR block (e.g. 10.0.0.0/16)"
+  description = "VPC CIDR block (e.g. 10.10.0.0/16)"
 }
 
 variable "private_subnets" {
@@ -30,10 +30,16 @@ variable "public_subnets" {
     cidr              = string
     availability_zone = string
   }))
-  description = "Public subnets. Each one gets a NAT Gateway, used by the private subnets in the same AZ"
+  description = "Public subnets. Each one gets a NAT Gateway (or only the first one, with single_nat_gateway)"
 
   validation {
-    condition     = length(distinct(var.public_subnets[*].availability_zone)) == length(var.public_subnets)
-    error_message = "At most one public subnet per availability_zone."
+    condition     = length(var.public_subnets) > 0 && length(distinct(var.public_subnets[*].availability_zone)) == length(var.public_subnets)
+    error_message = "At least one public subnet, and at most one per availability_zone."
   }
+}
+
+variable "single_nat_gateway" {
+  type        = bool
+  description = "One NAT Gateway for the whole VPC instead of one per AZ. Cheaper (each NAT bills hourly), but private subnets lose internet egress if that AZ fails: fine for labs and non-production"
+  default     = false
 }

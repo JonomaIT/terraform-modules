@@ -3,12 +3,12 @@ output "vpc_id" {
   value       = aws_vpc.main.id
 }
 
-output "public_subnets" {
-  description = "Public subnet IDs, in the same order as var.public_subnets"
-  value       = aws_subnet.public[*].id
+output "vpc_cidr" {
+  description = "VPC CIDR block"
+  value       = aws_vpc.main.cidr_block
 }
 
-output "private_subnets" {
-  description = "Private subnet IDs, in the same order as var.private_subnets"
-  value       = aws_subnet.private[*].id
+output "nat_gateway_count" {
+  description = "Number of NAT Gateways (1 with single_nat_gateway, otherwise one per public subnet)"
+  value       = length(aws_nat_gateway.private)
 }

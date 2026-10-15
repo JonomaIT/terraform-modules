@@ -8,6 +8,7 @@ resource "aws_subnet" "public" {
 
   tags = {
     Name = var.public_subnets[count.index].name
+    Tier = "public"
   }
 }
 
@@ -21,8 +22,10 @@ resource "aws_internet_gateway" "gw" {
 
 resource "aws_route_table" "public_internet_access" {
   vpc_id = aws_vpc.main.id
+
   tags = {
-    Name = format("%s-public-access", var.project_name)
+    Name = format("%s-public", var.project_name)
+    Tier = "public"
   }
 }
 
