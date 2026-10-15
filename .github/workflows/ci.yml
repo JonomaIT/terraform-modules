@@ -1,6 +1,6 @@
 name: CI
 
-# Every module: formatting, validation and its terraform test (mocked provider, no AWS access).
+# Logic lives in JonomaIT/pipelines: this file only says when to run it.
 on:
   pull_request:
     branches:
@@ -13,30 +13,5 @@ permissions:
   contents: read
 
 jobs:
-  modules:
-    name: fmt · validate · test
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
-        with:
-          terraform_version: ${{ vars.TERRAFORM_VERSION }}
-          terraform_wrapper: false
-
-      - name: Terraform fmt
-        run: terraform fmt -check -recursive
-
-      - name: Validate and test each module
-        run: |
-          for m in */versions.tf; do
-            dir=$(dirname "$m")
-            echo "::group::$dir"
-            terraform -chdir="$dir" init -backend=false -input=false
-            terraform -chdir="$dir" validate
-            terraform -chdir="$dir" test
-            echo "::endgroup::"
-          done
+  terraform:
+    uses: JonomaIT/pipelines/.github/workflows/terraform-ci.yml@v1.0.0
