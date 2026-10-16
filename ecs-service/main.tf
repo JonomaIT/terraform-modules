@@ -41,7 +41,9 @@ resource "aws_vpc_security_group_ingress_rule" "from_vpc" {
   cidr_ipv4         = data.aws_vpc.main.cidr_block
 }
 
-# Image pulls, AWS APIs and external calls (through the NAT Gateway).
+# Image pulls, AWS APIs and external calls (through the NAT Gateway). Restricting it needs VPC
+# endpoints or an egress proxy with an allow list: a later step of the platform.
+#trivy:ignore:AVD-AWS-0104
 resource "aws_vpc_security_group_egress_rule" "all" {
   security_group_id = aws_security_group.app.id
   description       = "All outbound"

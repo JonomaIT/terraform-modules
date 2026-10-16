@@ -19,7 +19,7 @@ Always pin a SemVer tag, never a branch:
 
 ```hcl
 module "vpc" {
-  source = "git::https://github.com/JonomaIT/terraform-modules.git//vpc?ref=v0.6.0"
+  source = "git::https://github.com/JonomaIT/terraform-modules.git//vpc?ref=v0.6.1"
 
   project_name       = "jonomait-stg-network"
   cidr               = "10.10.0.0/16"
@@ -52,6 +52,7 @@ terraform test
 
 | Tag | Change |
 |---|---|
+| `v0.6.1` | Security scan exceptions, annotated in the code: `alb` public on purpose (Cloudflare in front, 443 only from its ranges), `ecs-service` egress open through NAT (until VPC endpoints or an egress proxy). No resource changes. |
 | `v0.6.0` | **New layout (ADR-008, ADR-009).** `cluster-ecs` is removed and split into `ecs-cluster` (cluster + namespace) and `alb` (shared public ALB locked to Cloudflare, HTTPS only); the internal ALB, NLB, VPC Link and Global Accelerator path are gone. New `ecs-service` pattern. `vpc`: `single_nat_gateway`, `Tier` tags on subnets and route tables, `vpc_cidr` and `nat_gateway_count` outputs. Tests for every module. The previous modules stay available at `v0.5.1`. |
 | `v0.5.1` | `cluster-ecs`: destroy no longer fails with `ResourceInUse` on the internal ALB listeners. |
 | `v0.5.0` | `cluster-ecs`: `ingress_ports`. |
