@@ -42,6 +42,9 @@ resource "aws_vpc_security_group_egress_rule" "vpc" {
   cidr_ipv4         = data.aws_vpc.main.cidr_block
 }
 
+# Public on purpose: Cloudflare (WAF, DDoS, Access) is the front door, and the security group only
+# accepts Cloudflare's ranges on 443.
+#trivy:ignore:AVD-AWS-0053
 resource "aws_lb" "main" {
   name               = var.name
   internal           = false
