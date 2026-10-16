@@ -8,8 +8,9 @@ Terraform module library for JonomaIT. Modules describe **how** to build things;
 |---|---|---|
 | [`vpc`](vpc/) | primitive | VPC, public and private subnets (tagged `Tier = public \| private`), Internet Gateway, NAT Gateway per AZ or a single one (`single_nat_gateway`). |
 | [`ecs-cluster`](ecs-cluster/) | primitive | ECS cluster (Fargate and Fargate Spot) and the private namespace for service-to-service names (`<app>.jonomait.internal`, ECS Service Connect). |
-| [`alb`](alb/) | primitive | Shared internet-facing ALB: HTTPS only (no port 80, fail closed), only from `ingress_cidrs` (Cloudflare's ranges), default answer `404 <name> (<region>)`. |
+| [`alb`](alb/) | primitive | Shared internet-facing ALB: HTTPS only (no port 80, fail closed), only from `ingress_cidrs` (Cloudflare's ranges), default answer `404 <name> (<region>)`. `/health` on `ingress_host` answers `200 ok <region>`: the region check of the edge. |
 | [`ecs-service`](ecs-service/) | **pattern** | Everything an app needs on ECS from the app contract: task definition, service, IAM roles, logs, autoscaling, Service Connect and, with public hosts, a target group and a host rule on the shared ALB. Finds the cluster, VPC and ALB by naming convention. |
+| [`app-dns`](app-dns/) | **pattern** | The app's public names (ADR-010): proxied CNAMEs to the environment's entry (`ingress`), created and removed with the app. Refuses reserved names (`ingress*`, `www`), names more than one level deep and names that already exist with another owner (record comment). |
 
 **Primitive vs pattern:** the platform assembles primitives once per account and region; apps consume patterns, which wrap everything so an app only fills in values.
 
@@ -19,7 +20,7 @@ Always pin a SemVer tag, never a branch:
 
 ```hcl
 module "vpc" {
-  source = "git::https://github.com/JonomaIT/terraform-modules.git//vpc?ref=v0.6.1"
+  source = "git::https://github.com/JonomaIT/terraform-modules.git//vpc?ref=v0.7.0"
 
   project_name       = "jonomait-stg-network"
   cidr               = "10.10.0.0/16"
@@ -52,6 +53,7 @@ terraform test
 
 | Tag | Change |
 |---|---|
+| `v0.7.0` | **ADR-010, the app owns its public name.** New `app-dns` pattern. `alb`: required `ingress_host`, whose `/health` answers 200 (priority 1). `ecs-service`: app rule priorities moved to 100-50000 (1-99 belong to the platform). |
 | `v0.6.1` | Security scan exceptions, annotated in the code: `alb` public on purpose (Cloudflare in front, 443 only from its ranges), `ecs-service` egress open through NAT (until VPC endpoints or an egress proxy). No resource changes. |
 | `v0.6.0` | **New layout (ADR-008, ADR-009).** `cluster-ecs` is removed and split into `ecs-cluster` (cluster + namespace) and `alb` (shared public ALB locked to Cloudflare, HTTPS only); the internal ALB, NLB, VPC Link and Global Accelerator path are gone. New `ecs-service` pattern. `vpc`: `single_nat_gateway`, `Tier` tags on subnets and route tables, `vpc_cidr` and `nat_gateway_count` outputs. Tests for every module. The previous modules stay available at `v0.5.1`. |
 | `v0.5.1` | `cluster-ecs`: destroy no longer fails with `ResourceInUse` on the internal ALB listeners. |

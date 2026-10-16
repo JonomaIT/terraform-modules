@@ -18,7 +18,8 @@ locals {
 
   # ALB rules need a unique priority. Derived from the name, so nobody coordinates numbers; a
   # collision fails the apply with a clear AWS error (PriorityInUse) instead of hijacking a host.
-  priority = parseint(substr(sha1(var.name), 0, 8), 16) % 50000 + 1
+  # 1-99 are reserved for the platform (e.g. the ingress health rule).
+  priority = parseint(substr(sha1(var.name), 0, 8), 16) % 49900 + 100
 }
 
 data "aws_region" "current" {}

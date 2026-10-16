@@ -10,6 +10,16 @@ variables {
   subnets         = ["subnet-1", "subnet-2"]
   certificate_arn = "arn:aws:acm:us-east-1:111111111111:certificate/test"
   ingress_cidrs   = ["173.245.48.0/20", "103.21.244.0/22"]
+  ingress_host    = "ingress.example.com"
+}
+
+run "region_health_on_the_ingress_host" {
+  command = plan
+
+  assert {
+    condition     = aws_lb_listener_rule.ingress_health.priority == 1 && aws_lb_listener_rule.ingress_health.action[0].fixed_response[0].status_code == "200"
+    error_message = "The ingress host must answer 200 on /health (priority 1), independent of any app."
+  }
 }
 
 run "https_only_from_the_allowed_sources" {

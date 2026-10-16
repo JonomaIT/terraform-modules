@@ -75,3 +75,32 @@ resource "aws_lb_listener" "https" {
     }
   }
 }
+
+# Health of the region, for the edge (Cloudflare Load Balancing monitor): the ingress host answers
+# 200 on /health without depending on any app. Priority 1; app rules start at 100.
+resource "aws_lb_listener_rule" "ingress_health" {
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 1
+
+  condition {
+    host_header {
+      values = [var.ingress_host]
+    }
+  }
+
+  condition {
+    path_pattern {
+      values = ["/health"]
+    }
+  }
+
+  action {
+    type = "fixed-response"
+
+    fixed_response {
+      content_type = "text/plain"
+      message_body = format("ok %s", data.aws_region.current.region)
+      status_code  = "200"
+    }
+  }
+}
