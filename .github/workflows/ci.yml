@@ -14,4 +14,4 @@ permissions:
 
 jobs:
   terraform:
-    uses: JonomaIT/pipelines/.github/workflows/terraform-ci.yml@v1.0.0
+    uses: JonomaIT/pipelines/.github/workflows/terraform-ci.yml@v1.1.1
