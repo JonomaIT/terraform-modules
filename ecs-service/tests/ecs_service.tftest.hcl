@@ -52,8 +52,8 @@ run "public_app_gets_a_host_rule" {
   }
 
   assert {
-    condition     = aws_lb_listener_rule.app[0].priority >= 1 && aws_lb_listener_rule.app[0].priority <= 50000
-    error_message = "The rule priority must be in 1..50000."
+    condition     = aws_lb_listener_rule.app[0].priority >= 100 && aws_lb_listener_rule.app[0].priority <= 50000
+    error_message = "App rule priorities are 100..50000 (1-99 belong to the platform)."
   }
 
   assert {

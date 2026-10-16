@@ -38,6 +38,11 @@ variable "ingress_cidrs" {
   }
 }
 
+variable "ingress_host" {
+  type        = string
+  description = "Entry name of the environment (e.g. ingress.jonoma.com.br): its /health answers 200, the region check of the edge"
+}
+
 variable "deletion_protection" {
   type        = bool
   description = "Refuse to delete the ALB (true in production)"
