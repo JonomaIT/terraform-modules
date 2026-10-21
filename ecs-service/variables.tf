@@ -95,6 +95,12 @@ variable "secrets" {
   default     = {}
 }
 
+variable "task_policy_arns" {
+  type        = list(string)
+  description = "Managed policies attached to the task role: the app's data-access policy (ADR-011). Empty = the app only reads the platform's parameters"
+  default     = []
+}
+
 variable "capacity_provider" {
   type        = string
   description = "FARGATE or FARGATE_SPOT (up to ~70% cheaper, tasks may be interrupted: fine for staging and workers)"

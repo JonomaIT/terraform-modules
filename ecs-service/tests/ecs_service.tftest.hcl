@@ -2,6 +2,9 @@ mock_provider "aws" {
   mock_data "aws_region" {
     defaults = { region = "us-east-1" }
   }
+  mock_data "aws_caller_identity" {
+    defaults = { account_id = "111111111111" }
+  }
   mock_data "aws_vpc" {
     defaults = { id = "vpc-12345678", cidr_block = "10.10.0.0/16" }
   }
@@ -59,6 +62,33 @@ run "public_app_gets_a_host_rule" {
   assert {
     condition     = aws_iam_role.task.name == "jonomait-stg-use1-svc-hello-task" && aws_ecs_task_definition.app.family == "jonomait-stg-svc-hello"
     error_message = "Names must follow the convention (IAM names carry the region)."
+  }
+}
+
+run "task_role_reads_platform_parameters_only_by_default" {
+  command = plan
+
+  assert {
+    condition     = length(aws_iam_role_policy_attachment.task) == 0 && aws_iam_role_policy.platform.name == "read-platform-parameters"
+    error_message = "Without data, the task role only reads the platform's parameters."
+  }
+
+  assert {
+    condition     = output.platform_parameters == "/jonomait/staging/platform"
+    error_message = "Platform parameters live under /jonomait/<env>/platform."
+  }
+}
+
+run "data_access_policy_is_attached" {
+  command = plan
+
+  variables {
+    task_policy_arns = ["arn:aws:iam::111111111111:policy/jonomait-stg-svc-hello-data-access"]
+  }
+
+  assert {
+    condition     = length(aws_iam_role_policy_attachment.task) == 1
+    error_message = "The app's data-access policy is attached to the task role (ADR-011)."
   }
 }
 
