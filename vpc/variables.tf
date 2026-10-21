@@ -43,3 +43,14 @@ variable "single_nat_gateway" {
   description = "One NAT Gateway for the whole VPC instead of one per AZ. Cheaper (each NAT bills hourly), but private subnets lose internet egress if that AZ fails: fine for labs and non-production"
   default     = false
 }
+
+variable "gateway_endpoints" {
+  type        = list(string)
+  description = "Gateway endpoints on the private route tables (free): s3, dynamodb"
+  default     = ["s3", "dynamodb"]
+
+  validation {
+    condition     = alltrue([for e in var.gateway_endpoints : contains(["s3", "dynamodb"], e)])
+    error_message = "gateway_endpoints accepts s3 and dynamodb (the only gateway endpoints AWS offers)."
+  }
+}

@@ -13,6 +13,11 @@ output "public_hosts" {
   value       = var.hosts
 }
 
+output "platform_parameters" {
+  description = "Path of the platform's parameters the app can read (e.g. <path>/region-state)"
+  value       = local.platform_parameters
+}
+
 output "log_group" {
   description = "CloudWatch Logs group of the app"
   value       = aws_cloudwatch_log_group.app.name

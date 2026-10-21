@@ -10,6 +10,9 @@ locals {
   namespace = "jonomait.internal"
   public    = length(var.hosts) > 0
 
+  # Parameters the platform publishes for every app of the environment (e.g. region-state).
+  platform_parameters = "/jonomait/${var.environment}/platform"
+
   # IAM is global: role names carry the region so the same app can run in two regions (ADR-008).
   iam_name = "${local.base}-${local.region_short}-${var.name}" # jonomait-stg-use1-svc-compras
 
@@ -23,6 +26,8 @@ locals {
 }
 
 data "aws_region" "current" {}
+
+data "aws_caller_identity" "current" {}
 
 data "aws_ecs_cluster" "main" {
   cluster_name = "${local.base}-ecs"

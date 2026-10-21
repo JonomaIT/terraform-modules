@@ -38,9 +38,33 @@ resource "aws_iam_role_policy" "secrets" {
   policy = data.aws_iam_policy_document.secrets[0].json
 }
 
-# Task role: what the app code itself can do in AWS. Nothing yet; data access will come from the
-# <app>-data-access policy the infra team creates with the app's resources (ADR-004).
+# Task role: what the app code itself can do in AWS. Only two things:
+#   - read the platform's parameters of its environment, in its region (e.g. the region state,
+#     ACTIVE or PASSIVE, ADR-012);
+#   - whatever its data-access policy allows: created by the data runner from the app's
+#     deploy/data.hcl, only on the app's own resources and the ones it declared it uses (ADR-011).
 resource "aws_iam_role" "task" {
   name               = "${local.iam_name}-task"
   assume_role_policy = data.aws_iam_policy_document.ecs_tasks_trust.json
+}
+
+data "aws_iam_policy_document" "platform" {
+  statement {
+    sid       = "ReadPlatformParameters"
+    actions   = ["ssm:GetParameter", "ssm:GetParameters"]
+    resources = ["arn:aws:ssm:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:parameter${local.platform_parameters}/*"]
+  }
+}
+
+resource "aws_iam_role_policy" "platform" {
+  name   = "read-platform-parameters"
+  role   = aws_iam_role.task.id
+  policy = data.aws_iam_policy_document.platform.json
+}
+
+resource "aws_iam_role_policy_attachment" "task" {
+  for_each = toset(var.task_policy_arns)
+
+  role       = aws_iam_role.task.name
+  policy_arn = each.value
 }
