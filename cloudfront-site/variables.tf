@@ -1,6 +1,6 @@
 variable "name" {
   type        = string
-  description = "App name = repo name (e.g. web-app)"
+  description = "App name = repo name (e.g. web-sales)"
 
   validation {
     condition     = can(regex("^[a-z][a-z0-9-]{1,30}[a-z0-9]$", var.name))
