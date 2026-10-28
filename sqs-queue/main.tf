@@ -86,9 +86,14 @@ resource "aws_sqs_queue" "standby" {
       error_message = "With standby, name must be at most 72 characters (80 with the -standby suffix)."
     }
   }
+
+  # SQS refuses a redrive policy to a dead-letter queue whose allow policy does not list the queue
+  # yet: the allow policy (with this queue's ARN by convention) comes first.
+  depends_on = [aws_sqs_queue_redrive_allow_policy.dlq]
 }
 
-# Only its own queues may move messages into a dead-letter queue.
+# Only its own queues may move messages into a dead-letter queue. The standby queue's ARN is built
+# by convention (the main queue's plus -standby): it must be allowed before that queue exists.
 resource "aws_sqs_queue_redrive_allow_policy" "dlq" {
   for_each = aws_sqs_queue.dlq
 
@@ -97,7 +102,7 @@ resource "aws_sqs_queue_redrive_allow_policy" "dlq" {
 
   redrive_allow_policy = jsonencode({
     redrivePermission = "byQueue"
-    sourceQueueArns   = compact([aws_sqs_queue.main[each.key].arn, try(aws_sqs_queue.standby[each.key].arn, "")])
+    sourceQueueArns   = concat([aws_sqs_queue.main[each.key].arn], local.split ? ["${aws_sqs_queue.main[each.key].arn}-standby"] : [])
   })
 }
 
