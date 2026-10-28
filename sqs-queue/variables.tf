@@ -51,6 +51,12 @@ variable "max_receive_count" {
   }
 }
 
+variable "standby" {
+  type        = bool
+  description = "Several regions only: each region's queue gets only its own region's topics, and a <name>-standby queue gets the other regions' copies, to consume while another region is out (ADR-013, active/active). false: every queue gets every region's topics (ADR-012)"
+  default     = false
+}
+
 variable "subscribe_topic_arns" {
   type        = list(string)
   description = "SNS topics (any region of the account) whose messages every queue receives"
