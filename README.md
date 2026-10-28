@@ -58,6 +58,7 @@ terraform test
 
 | Tag | Change |
 |---|---|
+| `v0.11.0` | `cloudfront-site`: `failover_region`, a copy of the bucket in that region and a CloudFront origin group that reads it when the primary answers 5xx or does not answer. The deploy uploads to both (`failover_bucket` output). |
 | `v0.10.1` | `sqs-queue`: the standby queue is created after the dead-letter queue allows it (SQS refused the redrive policy the other way round). |
 | `v0.10.0` | `sqs-queue`: `standby` (ADR-013, active/active). Each region's queue gets only its own region's topics and `<name>-standby` the other regions' copies, consumed while another region is out; `standby_urls` and `standby_arns` outputs. Without it nothing changes. |
 | `v0.9.0` | **ADR-011, the app declares its data.** New data modules `dynamodb-table`, `sns-topic`, `sqs-queue`, `s3-bucket`, multi-region by design. `ecs-service`: `task_policy_arns`, task role reads `/jonomait/<env>/platform/*` (region state, ADR-012), `platform_parameters` output. `vpc`: S3 and DynamoDB gateway endpoints (`gateway_endpoints`). |
