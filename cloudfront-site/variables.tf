@@ -45,6 +45,12 @@ variable "price_class" {
   default     = "PriceClass_100"
 }
 
+variable "failover_region" {
+  type        = string
+  description = "Region of a replica of the bucket, read by CloudFront when the primary bucket fails (origin failover). null = one bucket"
+  default     = null
+}
+
 variable "force_destroy" {
   type        = bool
   description = "Allow destroying the bucket with files in it (labs); keep false where the files matter"
