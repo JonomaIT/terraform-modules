@@ -3,6 +3,7 @@
 # (ADR-010), pointing at this distribution; Cloudflare stays in front (WAF, DDoS, Access).
 # Must run with a provider in us-east-1: CloudFront only uses ACM certificates from there.
 # With failover_region, a replica of the bucket in that region backs the primary (failover.tf).
+# The certificate is the platform's wildcard, or the site's own for other domains (certificate.tf).
 
 locals {
   env_short = { staging = "stg", production = "prd", "shared-services" = "shr" }[var.environment]
@@ -10,14 +11,6 @@ locals {
 }
 
 data "aws_caller_identity" "current" {}
-
-# The platform's wildcard certificate (*.<zone>), issued by alb-shared in us-east-1: CloudFront
-# reuses it instead of validating a certificate of its own.
-data "aws_acm_certificate" "wildcard" {
-  domain      = "*.${var.zone}"
-  statuses    = ["ISSUED"]
-  most_recent = true
-}
 
 data "aws_cloudfront_cache_policy" "optimized" {
   name = "Managed-CachingOptimized"
@@ -206,7 +199,7 @@ resource "aws_cloudfront_distribution" "site" {
   }
 
   viewer_certificate {
-    acm_certificate_arn      = data.aws_acm_certificate.wildcard.arn
+    acm_certificate_arn      = local.certificate_arn
     ssl_support_method       = "sni-only"
     minimum_protocol_version = "TLSv1.2_2021"
   }
