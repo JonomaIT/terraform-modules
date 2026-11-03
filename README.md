@@ -58,6 +58,7 @@ terraform test
 
 | Tag | Change |
 |---|---|
+| `v0.12.0` | **Customer domains.** `cloudfront-site`: `extra_zones`; a name outside the platform's wildcard gets the site's own certificate, validated by DNS in Cloudflare (the wildcard is only looked up when used, so the site no longer depends on the ALB stack); `certificate` output; requires the Cloudflare provider. `app-dns`: `extra_zones`, where the apex and one label are allowed. |
 | `v0.11.0` | `cloudfront-site`: `failover_region`, a copy of the bucket in that region and a CloudFront origin group that reads it when the primary answers 5xx or does not answer. The deploy uploads to both (`failover_bucket` output). |
 | `v0.10.1` | `sqs-queue`: the standby queue is created after the dead-letter queue allows it (SQS refused the redrive policy the other way round). |
 | `v0.10.0` | `sqs-queue`: `standby` (ADR-013, active/active). Each region's queue gets only its own region's topics and `<name>-standby` the other regions' copies, consumed while another region is out; `standby_urls` and `standby_arns` outputs. Without it nothing changes. |

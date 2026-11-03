@@ -28,6 +28,30 @@ run "proxied_cname_to_the_ingress_with_owner" {
 # The owner check (a name that exists with another owner) reads Cloudflare: mocks cannot fake the
 # nested list it returns, so it is tested against the real zone (see README).
 
+run "customer_apex_in_an_allowed_zone" {
+  command = plan
+
+  variables {
+    hosts       = ["cliente.com.br", "www.cliente.com.br"]
+    extra_zones = ["cliente.com.br"]
+  }
+
+  assert {
+    condition     = cloudflare_dns_record.app["cliente.com.br"].proxied == true && length(cloudflare_dns_record.app) == 2
+    error_message = "The apex (and one label) of an allowed zone are proxied CNAMEs too; www is reserved only in the platform's zone."
+  }
+}
+
+run "zone_not_allowed_is_refused" {
+  command = plan
+
+  variables {
+    hosts = ["cliente.com.br"]
+  }
+
+  expect_failures = [var.hosts]
+}
+
 run "reserved_name_is_refused" {
   command = plan
 

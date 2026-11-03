@@ -14,6 +14,26 @@ mock_provider "aws" {
   mock_resource "aws_cloudfront_distribution" {
     defaults = { arn = "arn:aws:cloudfront::111111111111:distribution/TEST" }
   }
+  mock_resource "aws_acm_certificate" {
+    defaults = {
+      arn = "arn:aws:acm:us-east-1:111111111111:certificate/own"
+      domain_validation_options = [{
+        domain_name           = "cliente.com.br"
+        resource_record_name  = "_abc.cliente.com.br."
+        resource_record_type  = "CNAME"
+        resource_record_value = "_def.acm-validations.aws."
+      }]
+    }
+  }
+  mock_resource "aws_acm_certificate_validation" {
+    defaults = { certificate_arn = "arn:aws:acm:us-east-1:111111111111:certificate/own" }
+  }
+}
+
+mock_provider "cloudflare" {
+  mock_data "cloudflare_zone" {
+    defaults = { id = "zone-cliente" }
+  }
 }
 
 variables {
@@ -94,6 +114,45 @@ run "failover_in_the_same_region_is_refused" {
   }
 
   expect_failures = [aws_s3_bucket.failover]
+}
+
+run "platform_names_reuse_the_wildcard" {
+  command = plan
+
+  assert {
+    condition     = length(aws_acm_certificate.site) == 0 && length(data.aws_acm_certificate.wildcard) == 1 && output.certificate == "platform wildcard"
+    error_message = "One-label names under the platform's zone use its wildcard certificate."
+  }
+}
+
+run "customer_domain_gets_its_own_certificate" {
+  command = plan
+
+  variables {
+    hosts       = ["cliente.com.br"]
+    extra_zones = ["cliente.com.br"]
+  }
+
+  assert {
+    condition = (
+      length(aws_acm_certificate.site) == 1 && aws_acm_certificate.site[0].domain_name == "cliente.com.br" &&
+      length(data.aws_acm_certificate.wildcard) == 0 &&
+      cloudflare_dns_record.validation["cliente.com.br"].proxied == false &&
+      cloudflare_dns_record.validation["cliente.com.br"].zone_id == "zone-cliente"
+    )
+    error_message = "A name in an extra zone gets the site's own certificate, validated by a DNS-only record in that zone; the platform wildcard is not even looked up."
+  }
+}
+
+run "name_outside_every_zone_is_refused" {
+  command = plan
+
+  variables {
+    hosts       = ["cliente.com.br"]
+    extra_zones = []
+  }
+
+  expect_failures = [aws_acm_certificate.site]
 }
 
 run "spa_returns_index_for_unknown_paths" {
