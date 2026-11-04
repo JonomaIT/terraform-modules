@@ -39,6 +39,7 @@ mock_provider "aws" {
 }
 
 variables {
+  prefix      = "jonomait"
   name        = "svc-hello"
   environment = "staging"
   image       = "111111111111.dkr.ecr.us-east-1.amazonaws.com/svc-hello:abc1234"
@@ -75,7 +76,7 @@ run "task_role_reads_platform_parameters_only_by_default" {
 
   assert {
     condition     = output.platform_parameters == "/jonomait/staging/platform"
-    error_message = "Platform parameters live under /jonomait/<env>/platform."
+    error_message = "Platform parameters live under /<prefix>/<env>/platform."
   }
 }
 
@@ -126,4 +127,28 @@ run "latest_tag_is_rejected" {
   }
 
   expect_failures = [var.image]
+}
+
+run "prefix_must_be_short_and_lowercase" {
+  command = plan
+
+  variables {
+    prefix = "Jonoma-IT"
+  }
+
+  expect_failures = [var.prefix]
+}
+
+run "short_region_is_derived_for_any_region" {
+  command = plan
+
+  override_data {
+    target = data.aws_region.current
+    values = { region = "ap-southeast-2" }
+  }
+
+  assert {
+    condition     = aws_iam_role.task.name == "jonomait-stg-aps2-svc-hello-task"
+    error_message = "IAM names carry the short region (ap-southeast-2 → aps2)."
+  }
 }
