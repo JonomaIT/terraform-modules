@@ -2,21 +2,15 @@
 # CloudFront through Origin Access Control. The site's public names come from the app-dns pattern
 # (ADR-010), pointing at this distribution; Cloudflare stays in front (WAF, DDoS, Access).
 # Must run with a provider in us-east-1: CloudFront only uses ACM certificates from there.
+# With failover_region, a replica of the bucket in that region backs the primary (failover.tf).
+# The certificate is the platform's wildcard, or the site's own for other domains (certificate.tf).
 
 locals {
   env_short = { staging = "stg", production = "prd", "shared-services" = "shr" }[var.environment]
-  full_name = "jonomait-${local.env_short}-${var.name}"
+  full_name = "${var.prefix}-${local.env_short}-${var.name}"
 }
 
 data "aws_caller_identity" "current" {}
-
-# The platform's wildcard certificate (*.<zone>), issued by alb-shared in us-east-1: CloudFront
-# reuses it instead of validating a certificate of its own.
-data "aws_acm_certificate" "wildcard" {
-  domain      = "*.${var.zone}"
-  statuses    = ["ISSUED"]
-  most_recent = true
-}
 
 data "aws_cloudfront_cache_policy" "optimized" {
   name = "Managed-CachingOptimized"
@@ -142,9 +136,42 @@ resource "aws_cloudfront_distribution" "site" {
     origin_access_control_id = aws_cloudfront_origin_access_control.site.id
   }
 
-  # A static site only reads: no POST/PUT/DELETE reaches the bucket.
+  dynamic "origin" {
+    for_each = local.failover ? [1] : []
+
+    content {
+      domain_name              = aws_s3_bucket.failover[0].bucket_regional_domain_name
+      origin_id                = "s3-failover"
+      origin_access_control_id = aws_cloudfront_origin_access_control.site.id
+    }
+  }
+
+  # The replica answers when the primary bucket returns 5xx or does not answer at all. 403 and 404
+  # are not failures: they are the single-page app's unknown paths.
+  dynamic "origin_group" {
+    for_each = local.failover ? [1] : []
+
+    content {
+      origin_id = "s3-group"
+
+      failover_criteria {
+        status_codes = [500, 502, 503, 504]
+      }
+
+      member {
+        origin_id = "s3"
+      }
+
+      member {
+        origin_id = "s3-failover"
+      }
+    }
+  }
+
+  # A static site only reads: no POST/PUT/DELETE reaches the bucket (an origin group only takes
+  # GET, HEAD and OPTIONS anyway).
   default_cache_behavior {
-    target_origin_id           = "s3"
+    target_origin_id           = local.failover ? "s3-group" : "s3"
     allowed_methods            = ["GET", "HEAD", "OPTIONS"]
     cached_methods             = ["GET", "HEAD"]
     viewer_protocol_policy     = "redirect-to-https"
@@ -172,7 +199,7 @@ resource "aws_cloudfront_distribution" "site" {
   }
 
   viewer_certificate {
-    acm_certificate_arn      = data.aws_acm_certificate.wildcard.arn
+    acm_certificate_arn      = local.certificate_arn
     ssl_support_method       = "sni-only"
     minimum_protocol_version = "TLSv1.2_2021"
   }

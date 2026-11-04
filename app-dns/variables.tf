@@ -3,22 +3,30 @@ variable "zone" {
   description = "Cloudflare zone (e.g. jonoma.com.br)"
 }
 
+variable "extra_zones" {
+  type        = list(string)
+  description = "Other zones the platform allows names in (e.g. a customer's own domain): the apex or one label under it"
+  default     = []
+}
+
 variable "hosts" {
   type        = list(string)
-  description = "Public names of the app, <label>.<zone> (e.g. api.jonoma.com.br, api-stg.jonoma.com.br)"
+  description = "Public names of the app: <label>.<zone>, or the apex or <label>.<z> of a zone in extra_zones"
 
   validation {
     condition = alltrue([
-      for h in var.hosts : can(regex("^[a-z0-9-]+\\.${replace(var.zone, ".", "\\.")}$", h))
+      for h in var.hosts : can(regex("^[a-z0-9-]+\\.${replace(var.zone, ".", "\\.")}$", h)) || anytrue([
+        for z in var.extra_zones : h == z || can(regex("^[a-z0-9-]+\\.${replace(z, ".", "\\.")}$", h))
+      ])
     ])
-    error_message = "Every host must be a single label under the zone (<label>.<zone>): Universal SSL covers one level."
+    error_message = "Every host must be a single label under the platform's zone (<label>.<zone>: Universal SSL covers one level), or the apex or a single label of a zone in extra_zones."
   }
 
   validation {
     condition = alltrue([
-      for h in var.hosts : !contains(["ingress", "www"], split(".", h)[0]) && !startswith(h, "ingress-")
+      for h in var.hosts : !(endswith(h, ".${var.zone}") && (contains(["ingress", "www"], split(".", h)[0]) || startswith(h, "ingress-")))
     ])
-    error_message = "ingress, ingress-* and www are reserved for the platform."
+    error_message = "ingress, ingress-* and www of the platform's zone are reserved for the platform."
   }
 }
 

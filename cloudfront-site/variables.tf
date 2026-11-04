@@ -8,6 +8,16 @@ variable "name" {
   }
 }
 
+variable "prefix" {
+  type        = string
+  description = "Platform prefix (e.g. jonomait): every name starts with <prefix>-<env>-, the platform's parameters live under /<prefix>/<env>/platform"
+
+  validation {
+    condition     = can(regex("^[a-z][a-z0-9]{1,14}$", var.prefix))
+    error_message = "prefix must be 2-15 lowercase letters and digits (it starts names that have length limits)."
+  }
+}
+
 variable "environment" {
   type        = string
   description = "Account the site runs in (staging, production, shared-services)"
@@ -20,12 +30,18 @@ variable "environment" {
 
 variable "zone" {
   type        = string
-  description = "Cloudflare zone; the platform's *.<zone> certificate (us-east-1) is reused"
+  description = "The platform's Cloudflare zone; its *.<zone> certificate (us-east-1) covers one-label names under it"
+}
+
+variable "extra_zones" {
+  type        = list(string)
+  description = "Other Cloudflare zones the platform allows names in (e.g. a customer's own domain). A site with a name there gets a certificate of its own, validated in Cloudflare"
+  default     = []
 }
 
 variable "hosts" {
   type        = list(string)
-  description = "Public names of the site (CloudFront aliases), covered by *.<zone>"
+  description = "Public names of the site (CloudFront aliases): one label under zone, or names in extra_zones"
 
   validation {
     condition     = length(var.hosts) > 0
@@ -43,6 +59,12 @@ variable "price_class" {
   type        = string
   description = "CloudFront edge locations: PriceClass_100 (US, Canada, Europe; cheapest), _200, _All"
   default     = "PriceClass_100"
+}
+
+variable "failover_region" {
+  type        = string
+  description = "Region of a replica of the bucket, read by CloudFront when the primary bucket fails (origin failover). null = one bucket"
+  default     = null
 }
 
 variable "force_destroy" {

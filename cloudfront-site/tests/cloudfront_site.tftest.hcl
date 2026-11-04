@@ -5,15 +5,39 @@ mock_provider "aws" {
   mock_data "aws_acm_certificate" {
     defaults = { arn = "arn:aws:acm:us-east-1:111111111111:certificate/test" }
   }
+  mock_data "aws_region" {
+    defaults = { region = "us-east-1" }
+  }
   mock_data "aws_iam_policy_document" {
     defaults = { json = "{\"Version\":\"2012-10-17\",\"Statement\":[]}" }
   }
   mock_resource "aws_cloudfront_distribution" {
     defaults = { arn = "arn:aws:cloudfront::111111111111:distribution/TEST" }
   }
+  mock_resource "aws_acm_certificate" {
+    defaults = {
+      arn = "arn:aws:acm:us-east-1:111111111111:certificate/own"
+      domain_validation_options = [{
+        domain_name           = "cliente.com.br"
+        resource_record_name  = "_abc.cliente.com.br."
+        resource_record_type  = "CNAME"
+        resource_record_value = "_def.acm-validations.aws."
+      }]
+    }
+  }
+  mock_resource "aws_acm_certificate_validation" {
+    defaults = { certificate_arn = "arn:aws:acm:us-east-1:111111111111:certificate/own" }
+  }
+}
+
+mock_provider "cloudflare" {
+  mock_data "cloudflare_zone" {
+    defaults = { id = "zone-cliente" }
+  }
 }
 
 variables {
+  prefix      = "jonomait"
   name        = "web-app"
   environment = "production"
   zone        = "example.com"
@@ -25,7 +49,7 @@ run "private_bucket_read_only_through_cloudfront" {
 
   assert {
     condition     = aws_s3_bucket.site.bucket == "jonomait-prd-web-app-111111111111"
-    error_message = "Bucket named jonomait-<env>-<app>-<account>."
+    error_message = "Bucket named <prefix>-<env>-<app>-<account>."
   }
 
   assert {
@@ -45,6 +69,91 @@ run "private_bucket_read_only_through_cloudfront" {
     condition     = length(aws_cloudfront_distribution.site.custom_error_response) == 0
     error_message = "Without spa, missing pages are real errors."
   }
+}
+
+run "one_bucket_by_default" {
+  command = plan
+
+  assert {
+    condition     = length(aws_s3_bucket.failover) == 0 && length(aws_cloudfront_distribution.site.origin_group) == 0 && aws_cloudfront_distribution.site.default_cache_behavior[0].target_origin_id == "s3"
+    error_message = "Without failover_region: one bucket, one origin."
+  }
+}
+
+run "failover_bucket_in_another_region" {
+  command = plan
+
+  variables {
+    failover_region = "sa-east-1"
+  }
+
+  assert {
+    condition     = aws_s3_bucket.failover[0].bucket == "jonomait-prd-web-app-111111111111-sa-east-1" && aws_s3_bucket.failover[0].region == "sa-east-1"
+    error_message = "The replica is <prefix>-<env>-<app>-<account>-<region>, in that region."
+  }
+
+  assert {
+    condition = (
+      aws_cloudfront_distribution.site.default_cache_behavior[0].target_origin_id == "s3-group" &&
+      toset([for m in one(aws_cloudfront_distribution.site.origin_group).member : m.origin_id]) == toset(["s3", "s3-failover"]) &&
+      toset(one(one(aws_cloudfront_distribution.site.origin_group).failover_criteria).status_codes) == toset([500, 502, 503, 504])
+    )
+    error_message = "CloudFront reads the replica when the primary answers 5xx (not 403/404, the SPA's paths)."
+  }
+
+  assert {
+    condition     = aws_s3_bucket_public_access_block.failover[0].restrict_public_buckets && aws_s3_bucket_versioning.failover[0].versioning_configuration[0].status == "Enabled"
+    error_message = "The replica is as private (and versioned) as the primary."
+  }
+}
+
+run "failover_in_the_same_region_is_refused" {
+  command = plan
+
+  variables {
+    failover_region = "us-east-1"
+  }
+
+  expect_failures = [aws_s3_bucket.failover]
+}
+
+run "platform_names_reuse_the_wildcard" {
+  command = plan
+
+  assert {
+    condition     = length(aws_acm_certificate.site) == 0 && length(data.aws_acm_certificate.wildcard) == 1 && output.certificate == "platform wildcard"
+    error_message = "One-label names under the platform's zone use its wildcard certificate."
+  }
+}
+
+run "customer_domain_gets_its_own_certificate" {
+  command = plan
+
+  variables {
+    hosts       = ["cliente.com.br"]
+    extra_zones = ["cliente.com.br"]
+  }
+
+  assert {
+    condition = (
+      length(aws_acm_certificate.site) == 1 && aws_acm_certificate.site[0].domain_name == "cliente.com.br" &&
+      length(data.aws_acm_certificate.wildcard) == 0 &&
+      cloudflare_dns_record.validation["cliente.com.br"].proxied == false &&
+      cloudflare_dns_record.validation["cliente.com.br"].zone_id == "zone-cliente"
+    )
+    error_message = "A name in an extra zone gets the site's own certificate, validated by a DNS-only record in that zone; the platform wildcard is not even looked up."
+  }
+}
+
+run "name_outside_every_zone_is_refused" {
+  command = plan
+
+  variables {
+    hosts       = ["cliente.com.br"]
+    extra_zones = []
+  }
+
+  expect_failures = [aws_acm_certificate.site]
 }
 
 run "spa_returns_index_for_unknown_paths" {

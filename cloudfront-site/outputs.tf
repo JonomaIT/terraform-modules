@@ -3,9 +3,19 @@ output "bucket" {
   value       = aws_s3_bucket.site.id
 }
 
+output "failover_bucket" {
+  description = "Copy of the bucket in failover_region: the deploy uploads to it too (null without failover)"
+  value       = one(aws_s3_bucket.failover[*].id)
+}
+
 output "distribution_id" {
   description = "CloudFront distribution (the deploy invalidates its cache)"
   value       = aws_cloudfront_distribution.site.id
+}
+
+output "certificate" {
+  description = "platform wildcard, or own (the site's certificate, validated in Cloudflare)"
+  value       = local.own_certificate ? "own" : "platform wildcard"
 }
 
 output "domain_name" {

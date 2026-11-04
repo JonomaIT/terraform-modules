@@ -49,6 +49,46 @@ run "every_queue_gets_every_region_topic" {
   }
 }
 
+run "standby_splits_by_region" {
+  command = plan
+
+  variables {
+    standby = true
+  }
+
+  assert {
+    condition     = toset(keys(aws_sqs_queue.standby)) == toset(var.regions) && aws_sqs_queue.standby["us-east-1"].name == "jonomait-prd-svc-vendas-processamento-standby"
+    error_message = "One standby queue per region, named <name>-standby."
+  }
+
+  assert {
+    condition = alltrue([
+      for k, s in local.subscriptions : s.target == (s.topic_region == s.queue_region ? "main" : "standby")
+    ]) && length(aws_sns_topic_subscription.main) == 4
+    error_message = "The own region's topic goes to the main queue, the other region's to the standby queue."
+  }
+
+  assert {
+    condition     = length(aws_sqs_queue_policy.main) == 4 && length(output.standby_urls) == 2
+    error_message = "Both queues of each region accept their topics, and the standby URLs are published."
+  }
+}
+
+run "standby_needs_two_regions" {
+  command = plan
+
+  variables {
+    standby              = true
+    regions              = ["us-east-1"]
+    subscribe_topic_arns = ["arn:aws:sns:us-east-1:111111111111:jonomait-prd-svc-pedidos-pedido-criado"]
+  }
+
+  assert {
+    condition     = length(aws_sqs_queue.standby) == 0 && length(output.standby_urls) == 0
+    error_message = "With one region there is no other region to stand by for."
+  }
+}
+
 run "no_topics_no_subscriptions" {
   command = plan
 

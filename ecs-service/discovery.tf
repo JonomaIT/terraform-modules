@@ -2,16 +2,20 @@
 # (Padrões de nomes): no state of another component is read.
 
 locals {
-  env_short    = { staging = "stg", production = "prd", "shared-services" = "shr" }[var.environment]
-  region_short = { "us-east-1" = "use1", "us-east-2" = "use2", "sa-east-1" = "sae1" }[data.aws_region.current.region]
+  env_short = { staging = "stg", production = "prd", "shared-services" = "shr" }[var.environment]
 
-  base      = "jonomait-${local.env_short}" # jonomait-stg
-  full_name = "${local.base}-${var.name}"   # jonomait-stg-svc-compras
-  namespace = "jonomait.internal"
+  # Short region for IAM names, for any region: us-east-1 → use1, sa-east-1 → sae1,
+  # ap-southeast-2 → aps2.
+  region_parts = split("-", data.aws_region.current.region)
+  region_short = "${local.region_parts[0]}${substr(local.region_parts[1], 0, 1)}${local.region_parts[length(local.region_parts) - 1]}"
+
+  base      = "${var.prefix}-${local.env_short}" # jonomait-stg
+  full_name = "${local.base}-${var.name}"        # jonomait-stg-svc-compras
+  namespace = "${var.prefix}.internal"
   public    = length(var.hosts) > 0
 
   # Parameters the platform publishes for every app of the environment (e.g. region-state).
-  platform_parameters = "/jonomait/${var.environment}/platform"
+  platform_parameters = "/${var.prefix}/${var.environment}/platform"
 
   # IAM is global: role names carry the region so the same app can run in two regions (ADR-008).
   iam_name = "${local.base}-${local.region_short}-${var.name}" # jonomait-stg-use1-svc-compras
