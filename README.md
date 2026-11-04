@@ -7,9 +7,9 @@ Terraform module library for JonomaIT. Modules describe **how** to build things;
 | Module | Kind | What it creates |
 |---|---|---|
 | [`vpc`](vpc/) | primitive | VPC, public and private subnets (tagged `Tier = public \| private`), Internet Gateway, NAT Gateway per AZ or a single one (`single_nat_gateway`), free gateway endpoints for S3 and DynamoDB (that traffic skips the NAT). |
-| [`ecs-cluster`](ecs-cluster/) | primitive | ECS cluster (Fargate and Fargate Spot) and the private namespace for service-to-service names (`<app>.jonomait.internal`, ECS Service Connect). |
+| [`ecs-cluster`](ecs-cluster/) | primitive | ECS cluster (Fargate and Fargate Spot) and the private namespace for service-to-service names (`<app>.<prefix>.internal`, ECS Service Connect). |
 | [`alb`](alb/) | primitive | Shared internet-facing ALB: HTTPS only (no port 80, fail closed), only from `ingress_cidrs` (Cloudflare's ranges), default answer `404 <name> (<region>)`. `/health` on `ingress_host` answers `200 ok <region>`: the region check of the edge. |
-| [`ecs-service`](ecs-service/) | **pattern** | Everything an app needs on ECS from the app contract: task definition, service, IAM roles, logs, autoscaling, Service Connect and, with public hosts, a target group and a host rule on the shared ALB. Finds the cluster, VPC and ALB by naming convention. The task role reads the platform's parameters (`/jonomait/<env>/platform/*`) and gets the app's data-access policy (`task_policy_arns`). |
+| [`ecs-service`](ecs-service/) | **pattern** | Everything an app needs on ECS from the app contract: task definition, service, IAM roles, logs, autoscaling, Service Connect and, with public hosts, a target group and a host rule on the shared ALB. Finds the cluster, VPC and ALB by naming convention. The task role reads the platform's parameters (`/<prefix>/<env>/platform/*`) and gets the app's data-access policy (`task_policy_arns`). |
 | [`dynamodb-table`](dynamodb-table/) | data | Table in every region of the app (global table: replicas in sync, last writer wins), on demand, point-in-time recovery, deletion protection (off only in labs), optional sort key and TTL. |
 | [`sns-topic`](sns-topic/) | data | Topic in every region of the app, encrypted, usable only by the account and only over TLS. |
 | [`sqs-queue`](sqs-queue/) | data | Queue + dead-letter queue in every region of the app, encrypted, long polling, TLS only. Subscribes every region's queue to the listed topics of any region (cross-region fan-out). |
@@ -42,7 +42,7 @@ A tag versions the whole repo: `v0.9.0` applies to every module.
 - Modules never declare a `provider` or a `backend`: the caller provides both.
 - `versions.tf` sets the minimum Terraform and AWS provider versions.
 - Every `variable` has a `type` and a `description`; every `output` has a `description`.
-- Nothing hard-coded: region, account, AZs and IDs come from variables or data sources. Patterns follow the naming convention (`jonomait-<env>-<component>`) to find what the platform already runs.
+- Nothing hard-coded: prefix, region, account, AZs and IDs come from variables or data sources. Patterns follow the naming convention (`<prefix>-<env>-<component>`, e.g. `jonomait-stg-network`) to find what the platform already runs; the prefix is an input (`prefix`), never a default, so the same modules build another platform with another name.
 - Validations live on the variable, so errors show up at `plan` time instead of halfway through an `apply`.
 - Every module has `tests/` (terraform test with a mocked provider). CI runs fmt, validate and the tests of every module.
 
@@ -58,6 +58,7 @@ terraform test
 
 | Tag | Change |
 |---|---|
+| `v0.13.0` | **No platform name in the code.** `ecs-service` and `cloudfront-site`: required `prefix` (names `<prefix>-<env>-…`, parameters `/<prefix>/<env>/platform`, namespace `<prefix>.internal`). `ecs-service`: the short region of IAM names is derived for any region (`us-east-1` → `use1`, `ap-southeast-2` → `aps2`), no longer a list of three. Same names as before with `prefix = "jonomait"`. |
 | `v0.12.0` | **Customer domains.** `cloudfront-site`: `extra_zones`; a name outside the platform's wildcard gets the site's own certificate, validated by DNS in Cloudflare (the wildcard is only looked up when used, so the site no longer depends on the ALB stack); `certificate` output; requires the Cloudflare provider. `app-dns`: `extra_zones`, where the apex and one label are allowed. |
 | `v0.11.0` | `cloudfront-site`: `failover_region`, a copy of the bucket in that region and a CloudFront origin group that reads it when the primary answers 5xx or does not answer. The deploy uploads to both (`failover_bucket` output). |
 | `v0.10.1` | `sqs-queue`: the standby queue is created after the dead-letter queue allows it (SQS refused the redrive policy the other way round). |

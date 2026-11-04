@@ -11,6 +11,16 @@ variable "name" {
   }
 }
 
+variable "prefix" {
+  type        = string
+  description = "Platform prefix (e.g. jonomait): every name starts with <prefix>-<env>-, the platform's parameters live under /<prefix>/<env>/platform and the service namespace is <prefix>.internal"
+
+  validation {
+    condition     = can(regex("^[a-z][a-z0-9]{1,14}$", var.prefix))
+    error_message = "prefix must be 2-15 lowercase letters and digits (it starts names that have length limits)."
+  }
+}
+
 variable "environment" {
   type        = string
   description = "Account the app runs in (staging, production, shared-services)"

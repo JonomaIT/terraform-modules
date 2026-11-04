@@ -1,5 +1,5 @@
 # Pattern consumed by apps: an ECS service on the platform cluster, with logs, autoscaling,
-# Service Connect (<name>.jonomait.internal) and, when the app has public hosts, a target group
+# Service Connect (<name>.<prefix>.internal) and, when the app has public hosts, a target group
 # and a host rule on the shared ALB.
 
 resource "aws_cloudwatch_log_group" "app" {

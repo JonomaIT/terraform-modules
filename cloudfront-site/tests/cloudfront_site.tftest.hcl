@@ -37,6 +37,7 @@ mock_provider "cloudflare" {
 }
 
 variables {
+  prefix      = "jonomait"
   name        = "web-app"
   environment = "production"
   zone        = "example.com"
@@ -48,7 +49,7 @@ run "private_bucket_read_only_through_cloudfront" {
 
   assert {
     condition     = aws_s3_bucket.site.bucket == "jonomait-prd-web-app-111111111111"
-    error_message = "Bucket named jonomait-<env>-<app>-<account>."
+    error_message = "Bucket named <prefix>-<env>-<app>-<account>."
   }
 
   assert {
@@ -88,7 +89,7 @@ run "failover_bucket_in_another_region" {
 
   assert {
     condition     = aws_s3_bucket.failover[0].bucket == "jonomait-prd-web-app-111111111111-sa-east-1" && aws_s3_bucket.failover[0].region == "sa-east-1"
-    error_message = "The replica is jonomait-<env>-<app>-<account>-<region>, in that region."
+    error_message = "The replica is <prefix>-<env>-<app>-<account>-<region>, in that region."
   }
 
   assert {

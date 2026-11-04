@@ -7,7 +7,7 @@
 
 locals {
   env_short = { staging = "stg", production = "prd", "shared-services" = "shr" }[var.environment]
-  full_name = "jonomait-${local.env_short}-${var.name}"
+  full_name = "${var.prefix}-${local.env_short}-${var.name}"
 }
 
 data "aws_caller_identity" "current" {}
