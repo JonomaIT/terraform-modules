@@ -22,6 +22,11 @@ mock_provider "aws" {
         resource_record_name  = "_abc.cliente.com.br."
         resource_record_type  = "CNAME"
         resource_record_value = "_def.acm-validations.aws."
+        }, {
+        domain_name           = "example.com"
+        resource_record_name  = "_ghi.example.com."
+        resource_record_type  = "CNAME"
+        resource_record_value = "_jkl.acm-validations.aws."
       }]
     }
   }
@@ -166,5 +171,78 @@ run "spa_returns_index_for_unknown_paths" {
   assert {
     condition     = length(aws_cloudfront_distribution.site.custom_error_response) == 2
     error_message = "A single-page app maps 403 and 404 to /index.html."
+  }
+}
+
+run "platform_apex_for_its_owner_gets_its_own_certificate" {
+  command = plan
+
+  variables {
+    hosts       = ["example.com"]
+    zone_owners = { "example.com" = "web-app" }
+  }
+
+  assert {
+    condition     = length(aws_acm_certificate.site) == 1 && aws_acm_certificate.site[0].domain_name == "example.com" && length(data.aws_acm_certificate.wildcard) == 0
+    error_message = "The wildcard does not cover the apex: the owner's site issues its own certificate."
+  }
+}
+
+run "platform_apex_without_owner_is_refused" {
+  command = plan
+
+  variables {
+    hosts = ["example.com"]
+  }
+
+  expect_failures = [aws_acm_certificate.site]
+}
+
+run "customer_zone_of_another_app_is_refused" {
+  command = plan
+
+  variables {
+    hosts       = ["cliente.com.br"]
+    extra_zones = ["cliente.com.br"]
+    zone_owners = { "cliente.com.br" = "web-cliente" }
+  }
+
+  expect_failures = [aws_acm_certificate.site]
+}
+
+run "api_on_the_same_host_behind_the_distribution" {
+  command = plan
+
+  variables {
+    spa = true
+    api = { domain = "abc123.lambda-url.us-east-1.on.aws", function_name = "jonomait-prd-web-app-api" }
+  }
+
+  assert {
+    condition = (
+      one([for b in aws_cloudfront_distribution.site.ordered_cache_behavior : b.target_origin_id if b.path_pattern == "/api/*"]) == "api" &&
+      aws_cloudfront_origin_access_control.api[0].origin_access_control_origin_type == "lambda" &&
+      aws_lambda_permission.url[0].function_url_auth_type == "AWS_IAM" &&
+      aws_lambda_permission.invoke[0].invoked_via_function_url == true
+    )
+    error_message = "/api/* goes to the function URL, which only this distribution may sign and invoke."
+  }
+
+  assert {
+    condition     = length(aws_cloudfront_distribution.site.custom_error_response) == 0 && length(aws_cloudfront_function.spa) == 1
+    error_message = "With an API, the app's routes are rewritten by a function on the bucket's behavior, not by error pages that would hide the API's errors."
+  }
+}
+
+run "no_api_nothing_changes" {
+  command = plan
+
+  variables {
+    spa = true
+  }
+
+  assert {
+    condition     = length(aws_cloudfront_distribution.site.ordered_cache_behavior) == 0 && length(aws_cloudfront_distribution.site.custom_error_response) == 2 && length(aws_cloudfront_function.spa) == 0
+    error_message = "A site without an API keeps the error pages and has no API behavior."
   }
 }

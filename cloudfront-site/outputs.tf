@@ -22,3 +22,8 @@ output "domain_name" {
   description = "CloudFront address the public names point to (app-dns target)"
   value       = aws_cloudfront_distribution.site.domain_name
 }
+
+output "distribution_arn" {
+  description = "Distribution ARN"
+  value       = aws_cloudfront_distribution.site.arn
+}

@@ -71,3 +71,64 @@ run "two_levels_are_refused" {
 
   expect_failures = [var.hosts]
 }
+
+run "platform_apex_for_its_owner" {
+  command = plan
+
+  variables {
+    hosts       = ["example.com"]
+    owner       = "web-home"
+    zone_owners = { "example.com" = "web-home" }
+  }
+
+  assert {
+    condition     = cloudflare_dns_record.app["example.com"].proxied == true && local.allowed["example.com"]
+    error_message = "The platform zone's apex belongs to the app zone_owners gives it to."
+  }
+}
+
+run "platform_apex_without_owner_is_refused" {
+  command = plan
+
+  variables {
+    hosts = ["example.com"]
+  }
+
+  expect_failures = [var.hosts]
+}
+
+run "platform_apex_of_another_app_is_refused" {
+  command = plan
+
+  variables {
+    hosts       = ["example.com"]
+    zone_owners = { "example.com" = "web-home" }
+  }
+
+  expect_failures = [var.hosts]
+}
+
+run "labels_stay_open_when_the_apex_has_an_owner" {
+  command = plan
+
+  variables {
+    zone_owners = { "example.com" = "web-home" }
+  }
+
+  assert {
+    condition     = local.allowed["hello.example.com"]
+    error_message = "The apex's owner does not own the platform zone's labels."
+  }
+}
+
+run "customer_zone_of_another_app_is_refused" {
+  command = plan
+
+  variables {
+    hosts       = ["cliente.com.br"]
+    extra_zones = ["cliente.com.br"]
+    zone_owners = { "cliente.com.br" = "web-cliente" }
+  }
+
+  expect_failures = [cloudflare_dns_record.app]
+}

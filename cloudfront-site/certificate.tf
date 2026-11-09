@@ -13,6 +13,14 @@ locals {
   # Zone of each name: the longest zone it is in (a.b.com is in b.com, not in com).
   zones_by_length = [for s in reverse(sort([for z in local.zones : format("%03d|%s", length(z), z)])) : split("|", s)[1]]
   host_zone       = { for h in var.hosts : h => try([for z in local.zones_by_length : z if h == z || endswith(h, ".${z}")][0], null) }
+
+  # Names this site may have (the same rule as app-dns): the platform zone's labels are open; its
+  # apex and the names of an owned zone belong to the owner only. The apex is not covered by the
+  # wildcard, so a site there issues its own certificate.
+  not_allowed = [
+    for h, z in local.host_zone : h
+    if z != null && !(z == var.zone && h != var.zone) && lookup(var.zone_owners, z, h == var.zone ? "" : var.name) != var.name
+  ]
 }
 
 data "aws_acm_certificate" "wildcard" {
@@ -36,6 +44,11 @@ resource "aws_acm_certificate" "site" {
     precondition {
       condition     = alltrue([for h, z in local.host_zone : z != null])
       error_message = "Every host must be in the platform's zone (${var.zone}) or in one of extra_zones (${join(", ", var.extra_zones)})."
+    }
+
+    precondition {
+      condition     = length(local.not_allowed) == 0
+      error_message = "${join(", ", local.not_allowed)}: the zone (or the platform zone's apex) belongs to another app in zone_owners."
     }
   }
 }
