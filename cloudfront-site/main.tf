@@ -137,6 +137,23 @@ resource "aws_cloudfront_distribution" "site" {
   }
 
   dynamic "origin" {
+    for_each = local.api ? [1] : []
+
+    content {
+      domain_name              = var.api.domain
+      origin_id                = "api"
+      origin_access_control_id = aws_cloudfront_origin_access_control.api[0].id
+
+      custom_origin_config {
+        http_port              = 80
+        https_port             = 443
+        origin_protocol_policy = "https-only"
+        origin_ssl_protocols   = ["TLSv1.2"]
+      }
+    }
+  }
+
+  dynamic "origin" {
     for_each = local.failover ? [1] : []
 
     content {
@@ -178,11 +195,36 @@ resource "aws_cloudfront_distribution" "site" {
     compress                   = true
     cache_policy_id            = data.aws_cloudfront_cache_policy.optimized.id
     response_headers_policy_id = data.aws_cloudfront_response_headers_policy.security.id
+
+    dynamic "function_association" {
+      for_each = local.api && var.spa ? [1] : []
+
+      content {
+        event_type   = "viewer-request"
+        function_arn = aws_cloudfront_function.spa[0].arn
+      }
+    }
   }
 
-  # Single-page apps: unknown paths (403 from S3 with OAC) return index.html and the app routes.
+  dynamic "ordered_cache_behavior" {
+    for_each = local.api ? [1] : []
+
+    content {
+      path_pattern             = "/api/*"
+      target_origin_id         = "api"
+      allowed_methods          = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+      cached_methods           = ["GET", "HEAD"]
+      viewer_protocol_policy   = "https-only"
+      compress                 = true
+      cache_policy_id          = data.aws_cloudfront_cache_policy.disabled[0].id
+      origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_viewer[0].id
+    }
+  }
+
+  # Single-page apps without an API: unknown paths (403 from S3 with OAC) return index.html and the
+  # app routes. With an API, the spa function does it on the bucket's behavior only (api.tf).
   dynamic "custom_error_response" {
-    for_each = var.spa ? [403, 404] : []
+    for_each = var.spa && !local.api ? [403, 404] : []
 
     content {
       error_code            = custom_error_response.value
