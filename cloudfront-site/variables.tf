@@ -78,3 +78,12 @@ variable "zone_owners" {
   description = "Zone => the app that owns it. The platform's zone listed here gives its apex to that app (one-label names stay open to every app); a zone in extra_zones listed here is that app's alone. A zone not listed keeps the old rule (any app)"
   default     = {}
 }
+
+variable "api" {
+  type = object({
+    domain        = string # host of the function URL (lambda-function url_domain)
+    function_name = string
+  })
+  description = "The site's API: /api/* goes to this Lambda function URL, signed by the distribution. null = no API"
+  default     = null
+}
