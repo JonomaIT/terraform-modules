@@ -2,9 +2,6 @@ mock_provider "aws" {
   mock_data "aws_caller_identity" {
     defaults = { account_id = "111111111111" }
   }
-  mock_data "aws_acm_certificate" {
-    defaults = { arn = "arn:aws:acm:us-east-1:111111111111:certificate/test" }
-  }
   mock_data "aws_region" {
     defaults = { region = "us-east-1" }
   }
@@ -122,12 +119,15 @@ run "failover_in_the_same_region_is_refused" {
   expect_failures = [aws_s3_bucket.failover]
 }
 
-run "platform_names_reuse_the_wildcard" {
+run "platform_names_get_their_own_certificate" {
   command = plan
 
   assert {
-    condition     = length(aws_acm_certificate.site) == 0 && length(data.aws_acm_certificate.wildcard) == 1 && output.certificate == "platform wildcard"
-    error_message = "One-label names under the platform's zone use its wildcard certificate."
+    condition = (
+      aws_acm_certificate.site.domain_name == var.hosts[0] &&
+      cloudflare_dns_record.validation[var.hosts[0]].proxied == false
+    )
+    error_message = "One-label names under the platform's zone get the site's own certificate too: no dependency on the lab's wildcard (alb-shared)."
   }
 }
 
@@ -141,12 +141,11 @@ run "customer_domain_gets_its_own_certificate" {
 
   assert {
     condition = (
-      length(aws_acm_certificate.site) == 1 && aws_acm_certificate.site[0].domain_name == "cliente.com.br" &&
-      length(data.aws_acm_certificate.wildcard) == 0 &&
+      aws_acm_certificate.site.domain_name == "cliente.com.br" &&
       cloudflare_dns_record.validation["cliente.com.br"].proxied == false &&
       cloudflare_dns_record.validation["cliente.com.br"].zone_id == "zone-cliente"
     )
-    error_message = "A name in an extra zone gets the site's own certificate, validated by a DNS-only record in that zone; the platform wildcard is not even looked up."
+    error_message = "A name in an extra zone gets the site's own certificate, validated by a DNS-only record in that zone."
   }
 }
 
@@ -183,8 +182,8 @@ run "platform_apex_for_its_owner_gets_its_own_certificate" {
   }
 
   assert {
-    condition     = length(aws_acm_certificate.site) == 1 && aws_acm_certificate.site[0].domain_name == "example.com" && length(data.aws_acm_certificate.wildcard) == 0
-    error_message = "The wildcard does not cover the apex: the owner's site issues its own certificate."
+    condition     = aws_acm_certificate.site.domain_name == "example.com"
+    error_message = "The apex's owner gets a certificate for the apex."
   }
 }
 

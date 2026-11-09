@@ -13,10 +13,6 @@ output "distribution_id" {
   value       = aws_cloudfront_distribution.site.id
 }
 
-output "certificate" {
-  description = "platform wildcard, or own (the site's certificate, validated in Cloudflare)"
-  value       = local.own_certificate ? "own" : "platform wildcard"
-}
 
 output "domain_name" {
   description = "CloudFront address the public names point to (app-dns target)"

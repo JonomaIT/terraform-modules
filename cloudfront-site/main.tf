@@ -3,7 +3,7 @@
 # (ADR-010), pointing at this distribution; Cloudflare stays in front (WAF, DDoS, Access).
 # Must run with a provider in us-east-1: CloudFront only uses ACM certificates from there.
 # With failover_region, a replica of the bucket in that region backs the primary (failover.tf).
-# The certificate is the platform's wildcard, or the site's own for other domains (certificate.tf).
+# The certificate is the site's own, for all its names (certificate.tf).
 
 locals {
   env_short = { staging = "stg", production = "prd", "shared-services" = "shr" }[var.environment]

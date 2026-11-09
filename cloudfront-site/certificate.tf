@@ -1,14 +1,10 @@
-# The site's certificate. Names that are one label under the platform's zone are covered by the
-# platform's wildcard (*.<zone>, issued by alb-shared). Any other name, such as a customer's own
-# domain in one of extra_zones, makes the site issue a certificate of its own (all its names),
-# validated by DNS in Cloudflare. The wildcard is only looked up when it is used, so such a site
-# does not depend on the platform's ALB stack existing.
+# The site's certificate: always its own (all its names), issued by ACM in us-east-1 and validated
+# by DNS in Cloudflare. Free, and it keeps every site independent: the platform's wildcard
+# (*.<zone>) is issued by alb-shared, which only exists while the lab is up, so a site that used it
+# could not be deployed without the lab (v0.16.0).
 
 locals {
   zones = concat([var.zone], var.extra_zones)
-
-  wildcard_covers = alltrue([for h in var.hosts : can(regex("^[a-z0-9-]+\\.${replace(var.zone, ".", "\\.")}$", h))])
-  own_certificate = !local.wildcard_covers
 
   # Zone of each name: the longest zone it is in (a.b.com is in b.com, not in com).
   zones_by_length = [for s in reverse(sort([for z in local.zones : format("%03d|%s", length(z), z)])) : split("|", s)[1]]
@@ -16,24 +12,14 @@ locals {
 
   # Names this site may have (the same rule as app-dns): the platform zone's labels are open; its
   # apex and the names of an owned zone belong to the owner only. The apex is not covered by the
-  # wildcard, so a site there issues its own certificate.
+  # wildcard of the zone either way.
   not_allowed = [
     for h, z in local.host_zone : h
     if z != null && !(z == var.zone && h != var.zone) && lookup(var.zone_owners, z, h == var.zone ? "" : var.name) != var.name
   ]
 }
 
-data "aws_acm_certificate" "wildcard" {
-  count = local.own_certificate ? 0 : 1
-
-  domain      = "*.${var.zone}"
-  statuses    = ["ISSUED"]
-  most_recent = true
-}
-
 resource "aws_acm_certificate" "site" {
-  count = local.own_certificate ? 1 : 0
-
   domain_name               = var.hosts[0]
   subject_alternative_names = slice(var.hosts, 1, length(var.hosts))
   validation_method         = "DNS"
@@ -54,7 +40,7 @@ resource "aws_acm_certificate" "site" {
 }
 
 data "cloudflare_zone" "host" {
-  for_each = local.own_certificate ? toset([for z in values(local.host_zone) : z if z != null]) : toset([])
+  for_each = toset([for z in values(local.host_zone) : z if z != null])
 
   filter = {
     name = each.value
@@ -64,11 +50,11 @@ data "cloudflare_zone" "host" {
 # Validation records: DNS only (never proxied), one per name. Keyed by the names (known at plan
 # time); the record of each comes from the certificate, known only once it is requested.
 locals {
-  validation = local.own_certificate ? { for o in aws_acm_certificate.site[0].domain_validation_options : o.domain_name => o } : {}
+  validation = { for o in aws_acm_certificate.site.domain_validation_options : o.domain_name => o }
 }
 
 resource "cloudflare_dns_record" "validation" {
-  for_each = local.own_certificate ? toset(var.hosts) : toset([])
+  for_each = toset(var.hosts)
 
   zone_id = data.cloudflare_zone.host[local.host_zone[each.key]].id
   name    = trimsuffix(local.validation[each.key].resource_record_name, ".")
@@ -80,13 +66,22 @@ resource "cloudflare_dns_record" "validation" {
 }
 
 resource "aws_acm_certificate_validation" "site" {
-  count = local.own_certificate ? 1 : 0
-
-  certificate_arn = aws_acm_certificate.site[0].arn
+  certificate_arn = aws_acm_certificate.site.arn
 
   depends_on = [cloudflare_dns_record.validation]
 }
 
 locals {
-  certificate_arn = local.own_certificate ? aws_acm_certificate_validation.site[0].certificate_arn : data.aws_acm_certificate.wildcard[0].arn
+  certificate_arn = aws_acm_certificate_validation.site.certificate_arn
+}
+
+# Up to v0.15.0 the certificate had a count (0 with the wildcard): sites deployed then keep theirs.
+moved {
+  from = aws_acm_certificate.site[0]
+  to   = aws_acm_certificate.site
+}
+
+moved {
+  from = aws_acm_certificate_validation.site[0]
+  to   = aws_acm_certificate_validation.site
 }
