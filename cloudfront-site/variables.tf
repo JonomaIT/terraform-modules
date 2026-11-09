@@ -72,3 +72,9 @@ variable "force_destroy" {
   description = "Allow destroying the bucket with files in it (labs); keep false where the files matter"
   default     = false
 }
+
+variable "zone_owners" {
+  type        = map(string)
+  description = "Zone => the app that owns it. The platform's zone listed here gives its apex to that app (one-label names stay open to every app); a zone in extra_zones listed here is that app's alone. A zone not listed keeps the old rule (any app)"
+  default     = {}
+}
