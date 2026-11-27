@@ -37,7 +37,10 @@ Each module's `README.md` shows its inputs, outputs and a working example (`exam
 
 1. PR titles follow [Conventional Commits](https://www.conventionalcommits.org/) with the module as the scope: `feat(vpc): ...`, `fix(sqs-queue): ...`. The squash merge keeps the title.
 2. On `main`, [release-please](https://github.com/googleapis/release-please) keeps one release PR open with the next version of every changed module and its CHANGELOG (`feat` → minor, `fix` → patch, `!` → major; before `1.0.0` a breaking change is a minor).
-3. Merging that PR creates the tags `<module>/vX.Y.Z` and the GitHub releases.
+3. Patch and minor releases merge themselves (auto-merge, once the required checks pass). A release with a breaking change gets the label `release:manual` and waits for a person.
+4. The merge creates the tags `<module>/vX.Y.Z` and the GitHub releases.
+
+The workflow runs with a GitHub App token (org variable `RELEASE_APP_CLIENT_ID`, org secret `RELEASE_APP_PRIVATE_KEY`), because GitHub does not run the required checks on a PR opened with `GITHUB_TOKEN`.
 
 ### Taking a module to another repo
 
