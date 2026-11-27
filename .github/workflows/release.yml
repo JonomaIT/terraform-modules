@@ -1,0 +1,23 @@
+name: Release
+
+# One version per module (ADR-020). On every push to main, release-please reads the Conventional
+# Commits since each module's last tag and keeps one release PR open with the next versions and
+# CHANGELOGs. Merging that PR creates the tags (<module>/vX.Y.Z) and the GitHub releases.
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json

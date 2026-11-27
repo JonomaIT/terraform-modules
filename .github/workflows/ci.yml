@@ -15,3 +15,30 @@ permissions:
 jobs:
   terraform:
     uses: JonomaIT/pipelines/.github/workflows/terraform-ci.yml@v1.4.2
+
+  docs:
+    name: module READMEs up to date
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      TERRAFORM_DOCS_VERSION: v0.20.0
+      TERRAFORM_DOCS_SHA256: 34ae01772412bb11474e6718ea62113e38ff5964ee570a98c69fafe3a6dff286
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install terraform-docs
+        run: |
+          set -euo pipefail
+          curl -sSfL -o td.tgz "https://github.com/terraform-docs/terraform-docs/releases/download/${TERRAFORM_DOCS_VERSION}/terraform-docs-${TERRAFORM_DOCS_VERSION}-linux-amd64.tar.gz"
+          echo "${TERRAFORM_DOCS_SHA256}  td.tgz" | sha256sum -c -
+          tar xzf td.tgz terraform-docs && rm td.tgz
+
+      - name: Check every module README
+        run: |
+          set -euo pipefail
+          status=0
+          for dir in $(find . -mindepth 2 -maxdepth 2 -name versions.tf -exec dirname {} \; | sort); do
+            ./terraform-docs -c .terraform-docs.yml --output-check "$dir" || { echo "::error file=$dir/README.md::out of date: run terraform-docs -c .terraform-docs.yml $dir"; status=1; }
+          done
+          exit $status

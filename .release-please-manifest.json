@@ -1,0 +1,13 @@
+{
+  "alb": "0.16.0",
+  "app-dns": "0.16.0",
+  "cloudfront-site": "0.16.0",
+  "dynamodb-table": "0.16.0",
+  "ecs-cluster": "0.16.0",
+  "ecs-service": "0.16.0",
+  "lambda-function": "0.16.0",
+  "s3-bucket": "0.16.0",
+  "sns-topic": "0.16.0",
+  "sqs-queue": "0.16.0",
+  "vpc": "0.16.0"
+}
