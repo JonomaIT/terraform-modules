@@ -1,0 +1,37 @@
+# README of every module, generated: terraform-docs -c .terraform-docs.yml <module>
+# Only the part between the BEGIN_TF_DOCS and END_TF_DOCS markers is generated (usage from
+# examples/basic/main.tf, then inputs and outputs); the title and the intro above them are written by hand.
+# CI fails when a README is out of date (docs job), so edit the code, not the README.
+formatter: markdown table
+recursive:
+  enabled: false
+sections:
+  hide: [modules, resources, data-sources]
+content: |-
+  ## Usage
+
+  ```hcl
+  {{ include "examples/basic/main.tf" }}
+  ```
+
+  More in [`examples/`](examples/). Every release of this module is a tag `<module>/vX.Y.Z`, listed in [`CHANGELOG.md`](CHANGELOG.md).
+
+  {{ .Requirements }}
+
+  {{ .Providers }}
+
+  {{ .Inputs }}
+
+  {{ .Outputs }}
+output:
+  file: README.md
+  mode: inject
+
+settings:
+  anchor: false
+  default: true
+  escape: false
+  hide-empty: true
+  html: false
+  required: true
+  type: true

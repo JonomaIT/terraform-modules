@@ -15,27 +15,41 @@ Terraform module library for JonomaIT. Modules describe **how** to build things;
 | [`sqs-queue`](sqs-queue/) | data | Queue + dead-letter queue in every region of the app, encrypted, long polling, TLS only. Subscribes every region's queue to the listed topics of any region (cross-region fan-out). |
 | [`s3-bucket`](s3-bucket/) | data | Private bucket in every region of the app (`<name>-<region>`), versioned, TLS only, old versions expire; optional two-way replication between the regions. |
 | [`cloudfront-site`](cloudfront-site/) | **pattern** | Static site: private S3 bucket (versioned, old versions expire in 30 days) read only by CloudFront (OAC); managed cache and security-headers policies; GET/HEAD/OPTIONS only; optional SPA routing; reuses the platform's `*.<zone>` certificate (us-east-1). The public names come from `app-dns`. |
+| [`lambda-function`](lambda-function/) | **pattern** | A site's API (`deploy/api.hcl`): a Lambda function on Graviton behind the site's CloudFront at `<host>/api/*`, its function URL only answering CloudFront (AWS_IAM), logs to its own group, the app's data-access policy attached and `parameter_paths` to read its secrets at run time. |
 | [`app-dns`](app-dns/) | **pattern** | The app's public names (ADR-010): proxied CNAMEs to the environment's entry (`ingress`), created and removed with the app. Refuses reserved names (`ingress*`, `www`), names more than one level deep and names that already exist with another owner (record comment). |
 
 **Primitive vs pattern vs data:** the platform assembles primitives once per account and region; apps consume patterns, which wrap everything so an app only fills in values. Data modules are what the data runner (`pipelines/terraform-runner/data`) builds from an app's `deploy/data.hcl` (ADR-011): each one takes the app's `regions` and creates the copy of every region itself (AWS provider v6 per-resource `region`), replication included, so one state holds the whole multi-region resource.
 
 ## Usage
 
-Always pin a SemVer tag, never a branch:
+Every module has its own version (ADR-020). Pin the module's tag, never a branch:
 
 ```hcl
 module "vpc" {
-  source = "git::https://github.com/JonomaIT/terraform-modules.git//vpc?ref=v0.9.0"
-
-  project_name       = "jonomait-stg-network"
-  cidr               = "10.10.0.0/16"
-  single_nat_gateway = true
-  public_subnets     = [{ name = "public-a", cidr = "10.10.48.0/24", availability_zone = "us-east-1a" }, ...]
-  private_subnets    = [{ name = "private-a", cidr = "10.10.0.0/20", availability_zone = "us-east-1a" }, ...]
+  source = "git::https://github.com/JonomaIT/terraform-modules.git//vpc?ref=vpc/v0.17.0"
+  # ...
 }
 ```
 
-A tag versions the whole repo: `v0.9.0` applies to every module.
+Each module's `README.md` shows its inputs, outputs and a working example (`examples/basic`), and its `CHANGELOG.md` lists its releases. The repo-wide tags up to `v0.16.0` still work for code that pins them; new releases are per module only.
+
+### Releases
+
+1. PR titles follow [Conventional Commits](https://www.conventionalcommits.org/) with the module as the scope: `feat(vpc): ...`, `fix(sqs-queue): ...`. The squash merge keeps the title.
+2. On `main`, [release-please](https://github.com/googleapis/release-please) keeps one release PR open with the next version of every changed module and its CHANGELOG (`feat` → minor, `fix` → patch, `!` → major; before `1.0.0` a breaking change is a minor).
+3. Merging that PR creates the tags `<module>/vX.Y.Z` and the GitHub releases.
+
+### Taking a module to another repo
+
+Copy the module folder at its tag, keep `examples/` and `tests/`, and run `terraform test` there. Nothing in a module is specific to JonomaIT: the prefix, the zone and the regions are inputs (ADR-018).
+
+### Docs
+
+The part of each README between `BEGIN_TF_DOCS` and `END_TF_DOCS` is generated from the code; CI fails when it is out of date. After changing a module's variables, outputs or example:
+
+```sh
+terraform-docs -c .terraform-docs.yml <module>
+```
 
 ## Module rules
 
@@ -45,6 +59,7 @@ A tag versions the whole repo: `v0.9.0` applies to every module.
 - Nothing hard-coded: prefix, region, account, AZs and IDs come from variables or data sources. Patterns follow the naming convention (`<prefix>-<env>-<component>`, e.g. `jonomait-stg-network`) to find what the platform already runs; the prefix is an input (`prefix`), never a default, so the same modules build another platform with another name.
 - Validations live on the variable, so errors show up at `plan` time instead of halfway through an `apply`.
 - Every module has `tests/` (terraform test with a mocked provider). CI runs fmt, validate and the tests of every module.
+- Every module has `examples/basic` (the smallest working use, validated by CI like any root) and a `README.md` generated from the code.
 
 ## Tests
 
@@ -54,7 +69,9 @@ terraform init -backend=false
 terraform test
 ```
 
-## Versions
+## Versions before ADR-020 (repo-wide tags)
+
+From `v0.17.0` on, each module's changes are in its own `CHANGELOG.md`.
 
 | Tag | Change |
 |---|---|

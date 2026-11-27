@@ -1,0 +1,44 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "simple",
+  "include-component-in-tag": true,
+  "include-v-in-tag": true,
+  "tag-separator": "/",
+  "bump-minor-pre-major": true,
+  "bootstrap-sha": "70e7aa23db2338852a5d762931325dd7152691f2",
+  "packages": {
+    "alb": {
+      "component": "alb"
+    },
+    "app-dns": {
+      "component": "app-dns"
+    },
+    "cloudfront-site": {
+      "component": "cloudfront-site"
+    },
+    "dynamodb-table": {
+      "component": "dynamodb-table"
+    },
+    "ecs-cluster": {
+      "component": "ecs-cluster"
+    },
+    "ecs-service": {
+      "component": "ecs-service"
+    },
+    "lambda-function": {
+      "component": "lambda-function"
+    },
+    "s3-bucket": {
+      "component": "s3-bucket"
+    },
+    "sns-topic": {
+      "component": "sns-topic"
+    },
+    "sqs-queue": {
+      "component": "sqs-queue"
+    },
+    "vpc": {
+      "component": "vpc"
+    }
+  }
+}
